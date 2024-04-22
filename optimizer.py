@@ -1,7 +1,8 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-
+from typing import Tuple, Optional
 from pymoo.problems import get_problem
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -14,43 +15,165 @@ from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.visualization.scatter import Scatter
 from pymoo.decomposition.asf import ASF
 from test_problem import optimization_problem_test
+from pymoo.core.result import Result
 
 
 # Problem implementation
 class Problem(ElementwiseProblem):
-    def __init__(self):
-        super().__init__(n_var=4,  # number of parameters
-                         n_obj=2,  # number of objectives
-                         n_constr=4,  # number of constraints
-                         xl=np.array([0.01, 0.01, 0.01, 0.01]),  # lower bounds
-                         xu=np.array([10.0, 10.0, 10.0, 10.0]))  # upper bounds
+    """
+    A custom problem implementation for optimization, inheriting from pymoo's ElementwiseProblem.
+
+    The class is initialized with parameters, objectives, and constraints to create a multi-objective optimization problem.
+    The `_evaluate` method is used to compute objective and constraint values given a solution in the design space.
+
+    Attributes:
+        param_names (list): A list of parameter names.
+        obj_names (list): A list of objective names.
+        constr_names (list): A list of constraint names.
+    """
+
+    def __init__(self, parameters, objectives, constraints):
+        """
+        Initializes the Problem with given parameter bounds, objectives, and constraints.
+
+        Args:
+            parameters (dict): A dictionary where keys are parameter names and values are tuples with lower and upper bounds.
+            objectives (list): A list of objective names.
+            constraints (list): A list of constraint names.
+        """
+        self.param_names = list(parameters.keys())
+        lower_bounds = [parameters[name][0] for name in self.param_names]
+        upper_bounds = [parameters[name][1] for name in self.param_names]
+        super().__init__(n_var=len(parameters),  # calculated from the number of parameters
+                         n_obj=len(objectives),  # calculated from the number of objectives
+                         n_constr=len(constraints),  # calculated from the number of constraints
+                         xl=np.array(lower_bounds),  # lower bounds from input
+                         xu=np.array(upper_bounds)  # upper bounds from input
+                         )
+        self.obj_names = objectives
+        self.constr_names = constraints
 
     def _evaluate(self, x, out, *args, **kwargs):
-        result = optimization_problem_test({
-            'param1': x[0],
-            'param2': x[1],
-            'param3': x[2],
-            'param4': x[3]
-        })
-        out["F"] = np.array(
-            [result['objectives']['objective1'],
-             result['objectives']['objective2']
-             ])
-        out["G"] = np.array([
-            result['constraints']['constraint1'],
-            result['constraints']['constraint2'],
-            result['constraints']['constraint3'],
-            result['constraints']['constraint4']
-        ])
+        """
+        Evaluates the problem for a given solution, updating objective and constraint values.
+
+        Args:
+            x (np.ndarray): An array of parameter values representing a solution.
+            out (dict): A dictionary to store output results. This will be updated with objective values ("F") and constraint values ("G").
+
+        Returns:
+            None: This function updates the `out` dictionary with the calculated objective and constraint values.
+        """
+        params = dict(zip(self.param_names, x))
+        result = optimization_problem_test(params)
+        out["F"] = np.array([result['objectives'][name] for name in self.obj_names])
+        out["G"] = np.array([result['constraints'][name] for name in self.constr_names])
+
+
+def extract_optimization_results(
+        res: Result,
+        problem: ElementwiseProblem,
+        output_path: str
+) -> Tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame]
+]:
+    """
+    Extracts optimization results from a pymoo Result object into DataFrames,
+    storing history to an Excel file and returning DataFrames for design space, objective spaces, constraints, CV, opt, and pop.
+
+    Args:
+        res (Result): The optimization result object from pymoo (pymoo.core.result.Result).
+        problem (ElementwiseProblem): The problem instance with parameter names and constraints.
+        output_path (str): The path to store the Excel file with history data.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+            - history_df: DataFrame containing the optimization history.
+            - X: DataFrame containing the design space values.
+            - F: DataFrame containing the objective space values.
+            - G: DataFrame containing the constraint values (if available).
+            - CV: DataFrame containing the aggregated constraint violation (if available).
+            - opt: DataFrame containing the solutions as a Population object (if available).
+            - pop: DataFrame containing the final Population (if available).
+    """
+    # Ensure the output path exists
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    # Create history DataFrame
+    history_data = []
+    for algo_index, algo in enumerate(res.history):
+        for sol in algo.pop:
+            record = {'generation': algo_index + 1}
+            record.update(dict(zip(problem.param_names, sol.X)))
+            record.update(dict(zip(problem.obj_names, sol.F)))
+            if sol.has("G"):
+                record.update(dict(zip(problem.constr_names, sol.G)))
+            if sol.has("CV"):
+                record['CV'] = sol.CV
+            history_data.append(record)
+
+    history_df = pd.DataFrame(history_data)
+
+    # Save to Excel
+    history_df.to_excel(os.path.join(output_path, 'history.xlsx'))
+
+    # Create DataFrames for other components
+    X = pd.DataFrame(res.X, columns=problem.param_names)
+    F = pd.DataFrame(res.F, columns=problem.obj_names)
+
+    G = pd.DataFrame() if not hasattr(res, 'G') or res.G is None else pd.DataFrame(res.G, columns=problem.constr_names)
+    CV = pd.DataFrame() if not hasattr(res, 'CV') or res.CV is None else pd.DataFrame(res.CV, columns=['CV'])
+
+    # Extract opt and pop DataFrames
+    opt_df = None
+    if res.opt is not None:
+        opt_data = [{'X': dict(zip(problem.param_names, ind.X)),
+                     'F': dict(zip(problem.obj_names, ind.F)),
+                     'G': dict(zip(problem.constr_names, ind.G)) if ind.has("G") else None,
+                     'CV': ind.CV if ind.has("CV") else None} for ind in res.opt]
+        opt_df = pd.DataFrame(opt_data)
+
+    pop_df = None
+    if res.pop is not None:
+        pop_data = [{'X': dict(zip(problem.param_names, ind.X)),
+                     'F': dict(zip(problem.obj_names, ind.F)),
+                     'G': dict(zip(problem.constr_names, ind.G)) if ind.has("G") else None,
+                     'CV': ind.CV if ind.has("CV") else None} for ind in res.pop]
+        pop_df = pd.DataFrame(pop_data)
+
+    return (history_df, X, F, G, CV, opt_df, pop_df)
+
 
 if __name__ == "__main__":
-    # General settings
+
     folder_path = 'results'
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
-    problem = Problem()
+    # parameter boundaries (min, max)
+    parameters = {
+        'param1': (0.01, 10.0),
+        'param2': (0.01, 10.0),
+        'param3': (0.01, 10.0),
+        'param4': (0.01, 10.0)
+    }
 
+    # objectives names
+    objectives = ['objective1', 'objective2']
+
+    # constraints names
+    constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+
+    # problem initialization
+    problem = Problem(parameters, objectives, constraints)
+
+    # algorithm initialization
     algorithm = NSGA2(
         pop_size=40,
         n_offsprings=10,
@@ -60,6 +183,7 @@ if __name__ == "__main__":
         eliminate_duplicates=True
     )
 
+    # termination criteria
     termination = DefaultMultiObjectiveTermination(
         xtol=1e-8,
         cvtol=1e-6,
@@ -69,6 +193,7 @@ if __name__ == "__main__":
         n_max_evals=100000
     )
 
+    # run optimization
     res = minimize(problem,
                    algorithm,
                    termination,
@@ -76,97 +201,91 @@ if __name__ == "__main__":
                    save_history=True,
                    verbose=True)
 
-    npfile_path = os.path.join(folder_path, 'history.npy')
-    np.save(npfile_path, res.history)
-    X = res.X  # Design space values are
-    F = res.F  # Objective spaces values
-    G = res.G  # Constraint values
-    CV = res.CV  # Aggregated constraint violation
-    opt = res.opt  # The solutions as a Population object.
-    pop = res.pop  # The final Population
+    # result storage
+    history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
 
     # Pareto front for "welded beam" problem
-    pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
-    pymoo_scatter_plot.add(get_problem("welded_beam").pareto_front(use_cache=False), plot_type="line", color="black")
-    pymoo_scatter_plot.add(F, facecolor="none", edgecolor="red", alpha=0.8, s=20)
-    pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
+    # pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
+    # pymoo_scatter_plot.add(get_problem("welded_beam").pareto_front(use_cache=False), plot_type="line", color="black")
+    # pymoo_scatter_plot.add(F.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
+    # pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
 
     # Objective Minimization Over Generations evaluation
-    history = np.load('results/history.npy', allow_pickle=True)
-    objectives_over_time = [np.min(h.pop.get("F")) for h in history]
-    plt.figure()
-    plt.plot(objectives_over_time)
-    plt.title('Objective Minimization Over Generations')
-    plt.xlabel('Generation')
-    plt.ylabel('Objective Value')
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'objective_minimization_over_generations.png'))
+    # objectives_min_per_generation = history_df.groupby('generation')[problem.obj_names].min()
+    # objectives_over_time = objectives_min_per_generation.min(axis=1).tolist()
+    # plt.figure()
+    # plt.plot(objectives_over_time)
+    # plt.title('Objective Minimization Over Generations')
+    # plt.xlabel('Generation')
+    # plt.ylabel('Objective Value')
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(folder_path, 'objective_minimization_over_generations.png'))
+    #
+    # # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
+    # approx_ideal = F.min(axis=0)
+    # approx_nadir = F.max(axis=0)
+    # nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
+    # weights = np.array([0.5, 0.5])
+    # decomp = ASF()
+    # i = decomp.do(nF, 1 / weights).argmin()
+    # print("Best regarding ASF: Point \ni = %s\nF = %s" % (i, F[i]))
+    # plt.figure(figsize=(7, 5))
+    # plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
+    # plt.scatter(F[i, 0], F[i, 1], marker="x", color="red", s=200)
+    # plt.title("Objective Space")
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(folder_path, 'objective_space.png'))
 
-    # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
-    approx_ideal = F.min(axis=0)
-    approx_nadir = F.max(axis=0)
-    nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
-    weights = np.array([0.5, 0.5])
-    decomp = ASF()
-    i = decomp.do(nF, 1 / weights).argmin()
-    print("Best regarding ASF: Point \ni = %s\nF = %s" % (i, F[i]))
-    plt.figure(figsize=(7, 5))
-    plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
-    plt.scatter(F[i, 0], F[i, 1], marker="x", color="red", s=200)
-    plt.title("Objective Space")
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'objective_space.png'))
+    # # Convergence1
+    # hist = res.history
+    # n_evals = []  # corresponding number of function evaluations\
+    # hist_F = []  # the objective space values in each generation
+    # hist_cv = []  # constraint violation in each generation
+    # hist_cv_avg = []  # average constraint violation in the whole population
+    # for algo in hist:
+    #     n_evals.append(algo.evaluator.n_eval)
+    #     opt = algo.opt
+    #     hist_cv.append(opt.get("CV").min())
+    #     hist_cv_avg.append(algo.pop.get("CV").mean())
+    #     feas = np.where(opt.get("feasible"))[0]
+    #     hist_F.append(opt.get("F")[feas])
+    # vals = hist_cv_avg
+    # k = np.where(np.array(vals) <= 0.0)[0].min()
+    # print(f"Whole population feasible in Generation {k} after {n_evals[k]} evaluations.")
+    # plt.figure(figsize=(7, 5))
+    # plt.plot(n_evals, vals, color='black', lw=0.7, label="Avg. CV of Pop")
+    # plt.scatter(n_evals, vals, facecolor="none", edgecolor='black', marker="p")
+    # plt.axvline(n_evals[k], color="red", label="All Feasible", linestyle="--")
+    # plt.title("Convergence")
+    # plt.xlabel("Function Evaluations")
+    # plt.ylabel("Hypervolume")
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(folder_path, 'Convergence1.png'))
+    #
+    # # Convergence2
+    # approx_ideal = F.min(axis=0)
+    # approx_nadir = F.max(axis=0)
+    # from pymoo.indicators.hv import Hypervolume
+    #
+    # metric = Hypervolume(ref_point=np.array([1.1, 1.1]),
+    #                      norm_ref_point=False,
+    #                      zero_to_one=True,
+    #                      ideal=approx_ideal,
+    #                      nadir=approx_nadir)
+    # hv = [metric.do(_F) for _F in hist_F]
+    # plt.figure(figsize=(7, 5))
+    # plt.plot(n_evals, hv, color='black', lw=0.7, label="Avg. CV of Pop")
+    # plt.scatter(n_evals, hv, facecolor="none", edgecolor='black', marker="p")
+    # plt.title("Convergence")
+    # plt.xlabel("Function Evaluations")
+    # plt.ylabel("Hypervolume")
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(folder_path, 'Convergence2.png'))
 
-    # Convergence1
-    hist = res.history
-    n_evals = []  # corresponding number of function evaluations\
-    hist_F = []  # the objective space values in each generation
-    hist_cv = []  # constraint violation in each generation
-    hist_cv_avg = []  # average constraint violation in the whole population
-    for algo in hist:
-        n_evals.append(algo.evaluator.n_eval)
-        opt = algo.opt
-        hist_cv.append(opt.get("CV").min())
-        hist_cv_avg.append(algo.pop.get("CV").mean())
-        feas = np.where(opt.get("feasible"))[0]
-        hist_F.append(opt.get("F")[feas])
-    vals = hist_cv_avg
-    k = np.where(np.array(vals) <= 0.0)[0].min()
-    print(f"Whole population feasible in Generation {k} after {n_evals[k]} evaluations.")
-    plt.figure(figsize=(7, 5))
-    plt.plot(n_evals, vals, color='black', lw=0.7, label="Avg. CV of Pop")
-    plt.scatter(n_evals, vals, facecolor="none", edgecolor='black', marker="p")
-    plt.axvline(n_evals[k], color="red", label="All Feasible", linestyle="--")
-    plt.title("Convergence")
-    plt.xlabel("Function Evaluations")
-    plt.ylabel("Hypervolume")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'Convergence1.png'))
-
-    # Convergence2
-    approx_ideal = F.min(axis=0)
-    approx_nadir = F.max(axis=0)
-    from pymoo.indicators.hv import Hypervolume
-
-    metric = Hypervolume(ref_point=np.array([1.1, 1.1]),
-                         norm_ref_point=False,
-                         zero_to_one=True,
-                         ideal=approx_ideal,
-                         nadir=approx_nadir)
-    hv = [metric.do(_F) for _F in hist_F]
-    plt.figure(figsize=(7, 5))
-    plt.plot(n_evals, hv, color='black', lw=0.7, label="Avg. CV of Pop")
-    plt.scatter(n_evals, hv, facecolor="none", edgecolor='black', marker="p")
-    plt.title("Convergence")
-    plt.xlabel("Function Evaluations")
-    plt.ylabel("Hypervolume")
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'Convergence2.png'))
-
+    # TODO: save CSV against np
     # TODO: axis naming
     # TODO: all objectives by time oe epoch
-    # TODO: store variablr naming
     # TODO: save table of verbose
     # TODO: all figs as function
     # TODO: network diagram
