@@ -2,7 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import Tuple, Optional
+import seaborn as sns
+from typing import Union, Tuple, Optional, List
 from pymoo.problems import get_problem
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -14,8 +15,9 @@ from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.visualization.scatter import Scatter
 from pymoo.decomposition.asf import ASF
-from test_problem import optimization_problem_test
+from pymoo.indicators.hv import Hypervolume
 from pymoo.core.result import Result
+from test_problem import optimization_problem_test
 
 
 # Problem implementation
@@ -23,8 +25,10 @@ class Problem(ElementwiseProblem):
     """
     A custom problem implementation for optimization, inheriting from pymoo's ElementwiseProblem.
 
-    The class is initialized with parameters, objectives, and constraints to create a multi-objective optimization problem.
-    The `_evaluate` method is used to compute objective and constraint values given a solution in the design space.
+    The class is initialized with parameters, objectives, and constraints
+    to create a multi-objective optimization problem.
+    The `_evaluate` method is used to compute objective and
+    constraint values given a solution in the design space.
 
     Attributes:
         param_names (list): A list of parameter names.
@@ -37,7 +41,8 @@ class Problem(ElementwiseProblem):
         Initializes the Problem with given parameter bounds, objectives, and constraints.
 
         Args:
-            parameters (dict): A dictionary where keys are parameter names and values are tuples with lower and upper bounds.
+            parameters (dict): A dictionary where keys are parameter names and
+                               values are tuples with lower and upper bounds.
             objectives (list): A list of objective names.
             constraints (list): A list of constraint names.
         """
@@ -84,7 +89,8 @@ def extract_optimization_results(
 ]:
     """
     Extracts optimization results from a pymoo Result object into DataFrames,
-    storing history to an Excel file and returning DataFrames for design space, objective spaces, constraints, CV, opt, and pop.
+    storing history to an Excel file and returning DataFrames for design space,
+    objective spaces, constraints, CV, opt, and pop.
 
     Args:
         res (Result): The optimization result object from pymoo (pymoo.core.result.Result).
@@ -92,7 +98,8 @@ def extract_optimization_results(
         output_path (str): The path to store the Excel file with history data.
 
     Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+        Tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame],
+        Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.DataFrame]]:
             - history_df: DataFrame containing the optimization history.
             - X: DataFrame containing the design space values.
             - F: DataFrame containing the objective space values.
@@ -150,6 +157,144 @@ def extract_optimization_results(
     return (history_df, X, F, G, CV, opt_df, pop_df)
 
 
+def create_pareto_front_plot(
+        data: pd.DataFrame,
+        folder_path: str,
+        pymoo_problem: str = "welded_beam"
+) -> None:
+    """
+    Creates and saves a scatter plot showing the Pareto front for a specified problem along with additional data.
+
+    Args:
+        data (pd.DataFrame): A DtaFrame with objective values.
+        folder_path (str): The folder path where the plot will be saved.
+        pymoo_problem (str): The name of the problem to get the Pareto front from. Defaults to "welded_beam".
+
+    Returns:
+        None: The function saves the plot to the specified folder and does not return any value.
+    """
+    pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
+    pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line", color="black")
+    pymoo_scatter_plot.add(data.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
+    pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
+
+
+def plot_objective_minimization(
+        history_df: pd.DataFrame,
+        folder_path: str
+) -> None:
+    """
+    Creates a plot showing the minimum objective values over generations and saves it to a specified folder.
+
+    Args:
+        history_df (pd.DataFrame): The DataFrame containing optimization history.
+        folder_path (str): The directory path to save the plot.
+
+    Returns:
+        None: This function creates a Seaborn plot and saves it to the specified file.
+    """
+    objective_columns = history_df.filter(like='objective').columns
+    objectives_min_per_generation = history_df.groupby('generation')[objective_columns].min()
+    objectives_over_time = objectives_min_per_generation.min(axis=1).tolist()
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(7, 5))
+    sns.lineplot(
+        x=range(1, len(objectives_over_time) + 1),
+        y=objectives_over_time,
+        marker='.',
+        linestyle='-',
+        color='b',
+        markersize=10
+    )
+    plt.title("Objective Minimization Over Generations")
+    plt.xlabel("Generation")
+    plt.ylabel("Objective Value")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'convergence_by_objectives.png'))
+
+
+def find_best_tradeoff(
+        F: pd.DataFrame,
+        folder_path: str,
+        objectives_weights: List[float] = [0.5, 0.5]
+) -> int:
+    """
+    Finds the best trade-off between two objectives using Augmented Scalarization Function (ASF) and
+    creates a scatter plot, highlighting the optimal point.
+
+    Args:
+        F (pd.DataFrame): DataFrame containing the objective values.
+        folder_path (str): The directory path to save the plot.
+        objectives_weights (List[float]): A list of weights for the objectives to be used in ASF. Defaults [0.5, 0.5].
+
+    Returns:
+        int: The index of the optimal point with the best trade-off (for objective values DataFrame F).
+    """
+    if not np.isclose(sum(objectives_weights), 1):
+        raise ValueError("The sum of objectives_weights must be 1.")
+    approx_ideal = F.min(axis=0)
+    approx_nadir = F.max(axis=0)
+    nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
+    nFm = nF.to_numpy(copy=True)
+    weights = np.array(objectives_weights)
+    decomp = ASF()
+    best_index = decomp.do(nFm, 1 / weights).argmin()
+
+    plt.figure(figsize=(7, 5))
+    sns.scatterplot(data=F, x=F.columns[0], y=F.columns[1],  label="All points",
+                    s=30, color='blue', edgecolor='blue', alpha=0.6)
+    sns.scatterplot(data=F.iloc[[best_index]], x=F.columns[0], y=F.columns[1],  label="Best point",
+                    s=200, marker="x", color="red")
+    plt.title("Objective Space")
+    plt.xlabel(F.columns[0])
+    plt.ylabel(F.columns[1])
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'objective_space.png'))
+
+    return best_index
+
+
+def plot_convergence_by_hypervolume(
+        history_df: pd.DataFrame,
+        folder_path: str,
+        ref_point: np.ndarray = np.array([1.1, 1.1]),
+) -> None:
+    """
+    Plots convergence by hypervolume and saves it to a specified folder.
+
+    Args:
+        history_df (pd.DataFrame): The DataFrame containing optimization history.
+        folder_path (str): The directory path to save the plot.
+        ref_point (np.ndarray, optional): The reference point for
+                   hypervolume calculation. Defaults to np.array([1.1, 1.1]).
+
+    Returns:
+        None: This function creates a plot and saves it to the specified file.
+    """
+    approx_ideal = history_df.filter(like='objective').min(axis=0)
+    approx_nadir = history_df.filter(like='objective').max(axis=0)
+    hv_metric = Hypervolume(
+        ref_point=ref_point,
+        ideal=approx_ideal,
+        nadir=approx_nadir,
+        zero_to_one=True,
+        norm_ref_point=False
+    )
+    hist_F = [history_df[history_df['generation'] == gen].filter(like='objective').to_numpy()
+              for gen in history_df['generation'].unique()]
+    hypervolume_values = [hv_metric.do(_F) for _F in hist_F]
+    n_evals = list(range(1, len(hypervolume_values) + 1))
+
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(7, 5))
+    sns.lineplot(x=n_evals, y=hypervolume_values, marker='.', linestyle='-', color='b', markersize=10)
+    plt.title("Convergence by Hypervolume")
+    plt.xlabel("Function Evaluations")
+    plt.ylabel("Hypervolume")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'convergence_by_hypervolume.png'))
+
+
 if __name__ == "__main__":
 
     folder_path = 'results'
@@ -205,87 +350,24 @@ if __name__ == "__main__":
     history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
 
     # Pareto front for "welded beam" problem
-    # pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
-    # pymoo_scatter_plot.add(get_problem("welded_beam").pareto_front(use_cache=False), plot_type="line", color="black")
-    # pymoo_scatter_plot.add(F.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
-    # pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
+    create_pareto_front_plot(F, folder_path, pymoo_problem="welded_beam")
 
     # Objective Minimization Over Generations evaluation
-    # objectives_min_per_generation = history_df.groupby('generation')[problem.obj_names].min()
-    # objectives_over_time = objectives_min_per_generation.min(axis=1).tolist()
-    # plt.figure()
-    # plt.plot(objectives_over_time)
-    # plt.title('Objective Minimization Over Generations')
-    # plt.xlabel('Generation')
-    # plt.ylabel('Objective Value')
-    # plt.tight_layout()
-    # plt.savefig(os.path.join(folder_path, 'objective_minimization_over_generations.png'))
-    #
-    # # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
-    # approx_ideal = F.min(axis=0)
-    # approx_nadir = F.max(axis=0)
-    # nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
-    # weights = np.array([0.5, 0.5])
-    # decomp = ASF()
-    # i = decomp.do(nF, 1 / weights).argmin()
-    # print("Best regarding ASF: Point \ni = %s\nF = %s" % (i, F[i]))
-    # plt.figure(figsize=(7, 5))
-    # plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
-    # plt.scatter(F[i, 0], F[i, 1], marker="x", color="red", s=200)
-    # plt.title("Objective Space")
-    # plt.tight_layout()
-    # plt.savefig(os.path.join(folder_path, 'objective_space.png'))
+    plot_objective_minimization(history_df, folder_path)
 
-    # # Convergence1
-    # hist = res.history
-    # n_evals = []  # corresponding number of function evaluations\
-    # hist_F = []  # the objective space values in each generation
-    # hist_cv = []  # constraint violation in each generation
-    # hist_cv_avg = []  # average constraint violation in the whole population
-    # for algo in hist:
-    #     n_evals.append(algo.evaluator.n_eval)
-    #     opt = algo.opt
-    #     hist_cv.append(opt.get("CV").min())
-    #     hist_cv_avg.append(algo.pop.get("CV").mean())
-    #     feas = np.where(opt.get("feasible"))[0]
-    #     hist_F.append(opt.get("F")[feas])
-    # vals = hist_cv_avg
-    # k = np.where(np.array(vals) <= 0.0)[0].min()
-    # print(f"Whole population feasible in Generation {k} after {n_evals[k]} evaluations.")
-    # plt.figure(figsize=(7, 5))
-    # plt.plot(n_evals, vals, color='black', lw=0.7, label="Avg. CV of Pop")
-    # plt.scatter(n_evals, vals, facecolor="none", edgecolor='black', marker="p")
-    # plt.axvline(n_evals[k], color="red", label="All Feasible", linestyle="--")
-    # plt.title("Convergence")
-    # plt.xlabel("Function Evaluations")
-    # plt.ylabel("Hypervolume")
-    # plt.legend()
-    # plt.tight_layout()
-    # plt.savefig(os.path.join(folder_path, 'Convergence1.png'))
-    #
-    # # Convergence2
-    # approx_ideal = F.min(axis=0)
-    # approx_nadir = F.max(axis=0)
-    # from pymoo.indicators.hv import Hypervolume
-    #
-    # metric = Hypervolume(ref_point=np.array([1.1, 1.1]),
-    #                      norm_ref_point=False,
-    #                      zero_to_one=True,
-    #                      ideal=approx_ideal,
-    #                      nadir=approx_nadir)
-    # hv = [metric.do(_F) for _F in hist_F]
-    # plt.figure(figsize=(7, 5))
-    # plt.plot(n_evals, hv, color='black', lw=0.7, label="Avg. CV of Pop")
-    # plt.scatter(n_evals, hv, facecolor="none", edgecolor='black', marker="p")
-    # plt.title("Convergence")
-    # plt.xlabel("Function Evaluations")
-    # plt.ylabel("Hypervolume")
-    # plt.tight_layout()
-    # plt.savefig(os.path.join(folder_path, 'Convergence2.png'))
+    # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
+    i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
+    print(f'Best regarding ASF:\nPoint #{i}\n{F.iloc[i]}')
 
-    # TODO: save CSV against np
-    # TODO: axis naming
+    # Convergence by Hypervolume
+    plot_convergence_by_hypervolume(history_df, folder_path, ref_point=np.array([1.1, 1.1]))
+
+
+
+
+
+    # TODO: design space
+    # TODO: constrains space
     # TODO: all objectives by time oe epoch
     # TODO: save table of verbose
-    # TODO: all figs as function
     # TODO: network diagram
