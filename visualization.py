@@ -1,13 +1,14 @@
 import os
+from typing import Union, Tuple, Optional, List
 import numpy as np
 import pandas as pd
-from typing import Union, Tuple, Optional, List
-
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 from pymoo.visualization.scatter import Scatter
 from pymoo.indicators.hv import Hypervolume
 from pymoo.problems import get_problem
+
 problem = get_problem("welded_beam")
 
 
@@ -66,6 +67,7 @@ def plot_objective_minimization(
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'convergence_by_objectives.png'))
 
+
 def plot_convergence_by_hypervolume(
         history_df: pd.DataFrame,
         folder_path: str,
@@ -111,6 +113,7 @@ def plot_convergence_by_hypervolume(
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'convergence_by_hypervolume.png'))
 
+
 def plot_objective_convergence(
         history_df: pd.DataFrame,
         folder_path: str
@@ -133,8 +136,8 @@ def plot_objective_convergence(
         axes = [axes]
     for idx, obj_col in enumerate(objective_columns):
         min_per_generation = history_df.groupby('generation')[obj_col].min()
-        sns.lineplot(x=unique_generations, y=min_per_generation,
-                     marker='o', ax=axes[idx], color='b', label=f"Best {obj_col}")
+        sns.lineplot(x=unique_generations, y=min_per_generation, ax=axes[idx],
+                     marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col}")
         axes[idx].set_title(f"Convergence of {obj_col}")
         axes[idx].set_xlabel("Generation")
     plt.tight_layout()
@@ -200,7 +203,7 @@ def plot_constrains_vs_parameters(
     """
 
     num_params = len(X.columns)
-    num_constrains= len(G.columns)
+    num_constrains = len(G.columns)
 
     fig, axes = plt.subplots(num_params, num_constrains, figsize=(30, 20), sharex=False, sharey=False)
 
@@ -222,3 +225,42 @@ def plot_constrains_vs_parameters(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'constrain_vs_parameters.png'))
+
+
+def plot_parallel_coordinates(
+        X: pd.DataFrame,
+        G: pd.DataFrame,
+        F: pd.DataFrame,
+        folder_path: str,
+        file_name: str = 'parallel_coordinates.html'
+) -> None:
+    """
+    Creates an interactive parallel coordinates plot for parameters, constraints,
+    and objectives, and saves it to a specified folder.
+
+    Args:
+        X (pd.DataFrame): DataFrame containing parameter values.
+        G (pd.DataFrame): DataFrame containing constraint values.
+        F (pd.DataFrame): DataFrame containing objective values.
+        folder_path (str): Directory path to save the plot.
+        file_name (str, optional): Name of the file for saving the plot. Defaults to 'parallel_coordinates.html'.
+
+    Returns:
+        None: This function creates and saves an interactive parallel coordinates plot.
+    """
+
+    combined_data = pd.concat([X, G, F], axis=1)
+    score = combined_data['objective1'] * combined_data['objective2']
+
+    fig = px.parallel_coordinates(
+        combined_data,
+        dimensions=combined_data.columns,
+        color=score,
+        color_continuous_scale=px.colors.diverging.Tealrose,
+        labels={col: col for col in combined_data.columns},
+        title="Parallel Coordinates Plot",
+        width=1024,
+        height=768
+    )
+    plot_path = os.path.join(folder_path, file_name)
+    fig.write_html(plot_path)

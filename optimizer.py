@@ -261,9 +261,14 @@ if __name__ == "__main__":
     # Constrains vs parameters
     plot_constrains_vs_parameters(X, G, folder_path)
 
+    # Parallel coordinates plot
+    plot_parallel_coordinates(X, G, F, folder_path)
 
 
 
-    # TODO: network diagram
+
+
+
     # TODO: save table of verbose
     # TODO: logging
+    # TODO: plot from history
