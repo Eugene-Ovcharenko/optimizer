@@ -1,0 +1,141 @@
+import os
+import numpy as np
+import pandas as pd
+from typing import Union, Tuple, Optional, List
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pymoo.visualization.scatter import Scatter
+from pymoo.indicators.hv import Hypervolume
+from pymoo.problems import get_problem
+problem = get_problem("welded_beam")
+
+
+def create_pareto_front_plot(
+        data: pd.DataFrame,
+        folder_path: str,
+        pymoo_problem: str = "welded_beam"
+) -> None:
+    """
+    Creates and saves a scatter plot showing the Pareto front for a specified problem along with additional data.
+
+    Args:
+        data (pd.DataFrame): A DtaFrame with objective values.
+        folder_path (str): The folder path where the plot will be saved.
+        pymoo_problem (str): The name of the problem to get the Pareto front from. Defaults to "welded_beam".
+
+    Returns:
+        None: The function saves the plot to the specified folder and does not return any value.
+    """
+    pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
+    pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line", color="black")
+    pymoo_scatter_plot.add(data.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
+    pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
+
+
+def plot_objective_minimization(
+        history_df: pd.DataFrame,
+        folder_path: str
+) -> None:
+    """
+    Creates a plot showing the minimum objective values over generations and saves it to a specified folder.
+
+    Args:
+        history_df (pd.DataFrame): The DataFrame containing optimization history.
+        folder_path (str): The directory path to save the plot.
+
+    Returns:
+        None: This function creates a Seaborn plot and saves it to the specified file.
+    """
+    objective_columns = history_df.filter(like='objective').columns
+    objectives_min_per_generation = history_df.groupby('generation')[objective_columns].min()
+    objectives_over_time = objectives_min_per_generation.min(axis=1).tolist()
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(7, 5))
+    sns.lineplot(
+        x=range(1, len(objectives_over_time) + 1),
+        y=objectives_over_time,
+        marker='.',
+        linestyle='-',
+        color='b',
+        markersize=10
+    )
+    plt.title("Objective Minimization Over Generations")
+    plt.xlabel("Generation")
+    plt.ylabel("Objective Value")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'convergence_by_objectives.png'))
+
+def plot_convergence_by_hypervolume(
+        history_df: pd.DataFrame,
+        folder_path: str,
+        ref_point: np.ndarray = np.array([1.0, 1.0]),
+) -> None:
+    """
+    Plots convergence by hypervolume and saves it to a specified folder.
+
+    Args:
+        history_df (pd.DataFrame): The DataFrame containing optimization history.
+        folder_path (str): The directory path to save the plot.
+        ref_point (np.ndarray, optional): The reference point for
+                   hypervolume calculation. Defaults to np.array([1.0, 1.0]).
+
+    Returns:
+        None: This function creates a plot and saves it to the specified file.
+    """
+    approx_ideal = history_df.filter(like='objective').min(axis=0)
+    approx_nadir = history_df.filter(like='objective').max(axis=0)
+
+    hv_metric = Hypervolume(
+        ref_point=ref_point,
+        ideal=approx_ideal,
+        nadir=approx_nadir,
+        zero_to_one=True,
+        norm_ref_point=True
+    )
+    unique_generations = history_df['generation'].unique()
+    objective_values_per_generation = []
+    for gen in unique_generations:
+        current_generation_df = history_df[history_df['generation'] == gen]
+        objective_columns = current_generation_df.filter(like='objective')
+        objective_values_per_generation.append(objective_columns.to_numpy())
+    hypervolume_values = [hv_metric.do(_F) for _F in objective_values_per_generation]
+    n_evals = list(range(1, len(hypervolume_values) + 1))
+
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(7, 5))
+    sns.lineplot(x=n_evals, y=hypervolume_values, marker='.', linestyle='-', color='b', markersize=10)
+    plt.title("Convergence by Hypervolume")
+    plt.xlabel("Function Evaluations")
+    plt.ylabel("Hypervolume")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'convergence_by_hypervolume.png'))
+
+def plot_objective_convergence(
+        history_df: pd.DataFrame,
+        folder_path: str
+) -> None:
+    """
+    Plots convergence of objectives over generations, with optional modes to visualize  best objective values.
+
+    Args:
+        history_df (pd.DataFrame): DataFrame containing optimization history.
+        folder_path (str): Directory path to save the plot.
+
+    Returns:
+        None: This function creates and saves a plot showing objective convergence over generations.
+    """
+    unique_generations = sorted(history_df['generation'].unique())
+    objective_columns = history_df.filter(like='objective').columns
+    num_objectives = len(objective_columns)
+    fig, axes = plt.subplots(1, num_objectives, figsize=(15, 5), sharey=False)
+    if num_objectives == 1:
+        axes = [axes]
+    for idx, obj_col in enumerate(objective_columns):
+        min_per_generation = history_df.groupby('generation')[obj_col].min()
+        sns.lineplot(x=unique_generations, y=min_per_generation,
+                     marker='o', ax=axes[idx], color='b', label=f"Best {obj_col}")
+        axes[idx].set_title(f"Convergence of {obj_col}")
+        axes[idx].set_xlabel("Generation")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'objective_convergence.png'))

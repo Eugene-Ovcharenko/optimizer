@@ -1,22 +1,19 @@
 import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from typing import Union, Tuple, Optional, List
-from pymoo.problems import get_problem
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.nsga3 import NSGA3
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
-from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
-from pymoo.visualization.scatter import Scatter
+from pymoo.optimize import minimize
 from pymoo.decomposition.asf import ASF
-from pymoo.indicators.hv import Hypervolume
 from pymoo.core.result import Result
+
+from visualization import *
 from test_problem import optimization_problem_test
 
 
@@ -108,11 +105,7 @@ def extract_optimization_results(
             - opt: DataFrame containing the solutions as a Population object (if available).
             - pop: DataFrame containing the final Population (if available).
     """
-    # Ensure the output path exists
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
 
-    # Create history DataFrame
     history_data = []
     for algo_index, algo in enumerate(res.history):
         for sol in algo.pop:
@@ -124,20 +117,17 @@ def extract_optimization_results(
             if sol.has("CV"):
                 record['CV'] = sol.CV
             history_data.append(record)
-
     history_df = pd.DataFrame(history_data)
-
-    # Save to Excel
     history_df.to_excel(os.path.join(output_path, 'history.xlsx'))
 
-    # Create DataFrames for other components
     X = pd.DataFrame(res.X, columns=problem.param_names)
+
     F = pd.DataFrame(res.F, columns=problem.obj_names)
 
     G = pd.DataFrame() if not hasattr(res, 'G') or res.G is None else pd.DataFrame(res.G, columns=problem.constr_names)
+
     CV = pd.DataFrame() if not hasattr(res, 'CV') or res.CV is None else pd.DataFrame(res.CV, columns=['CV'])
 
-    # Extract opt and pop DataFrames
     opt_df = None
     if res.opt is not None:
         opt_data = [{'X': dict(zip(problem.param_names, ind.X)),
@@ -155,62 +145,6 @@ def extract_optimization_results(
         pop_df = pd.DataFrame(pop_data)
 
     return (history_df, X, F, G, CV, opt_df, pop_df)
-
-
-def create_pareto_front_plot(
-        data: pd.DataFrame,
-        folder_path: str,
-        pymoo_problem: str = "welded_beam"
-) -> None:
-    """
-    Creates and saves a scatter plot showing the Pareto front for a specified problem along with additional data.
-
-    Args:
-        data (pd.DataFrame): A DtaFrame with objective values.
-        folder_path (str): The folder path where the plot will be saved.
-        pymoo_problem (str): The name of the problem to get the Pareto front from. Defaults to "welded_beam".
-
-    Returns:
-        None: The function saves the plot to the specified folder and does not return any value.
-    """
-    pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
-    pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line", color="black")
-    pymoo_scatter_plot.add(data.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
-    pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
-
-
-def plot_objective_minimization(
-        history_df: pd.DataFrame,
-        folder_path: str
-) -> None:
-    """
-    Creates a plot showing the minimum objective values over generations and saves it to a specified folder.
-
-    Args:
-        history_df (pd.DataFrame): The DataFrame containing optimization history.
-        folder_path (str): The directory path to save the plot.
-
-    Returns:
-        None: This function creates a Seaborn plot and saves it to the specified file.
-    """
-    objective_columns = history_df.filter(like='objective').columns
-    objectives_min_per_generation = history_df.groupby('generation')[objective_columns].min()
-    objectives_over_time = objectives_min_per_generation.min(axis=1).tolist()
-    sns.set(style="whitegrid")
-    plt.figure(figsize=(7, 5))
-    sns.lineplot(
-        x=range(1, len(objectives_over_time) + 1),
-        y=objectives_over_time,
-        marker='.',
-        linestyle='-',
-        color='b',
-        markersize=10
-    )
-    plt.title("Objective Minimization Over Generations")
-    plt.xlabel("Generation")
-    plt.ylabel("Objective Value")
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'convergence_by_objectives.png'))
 
 
 def find_best_tradeoff(
@@ -241,9 +175,9 @@ def find_best_tradeoff(
     best_index = decomp.do(nFm, 1 / weights).argmin()
 
     plt.figure(figsize=(7, 5))
-    sns.scatterplot(data=F, x=F.columns[0], y=F.columns[1],  label="All points",
+    sns.scatterplot(data=F, x=F.columns[0], y=F.columns[1], label="All points",
                     s=30, color='blue', edgecolor='blue', alpha=0.6)
-    sns.scatterplot(data=F.iloc[[best_index]], x=F.columns[0], y=F.columns[1],  label="Best point",
+    sns.scatterplot(data=F.iloc[[best_index]], x=F.columns[0], y=F.columns[1], label="Best point",
                     s=200, marker="x", color="red")
     plt.title("Objective Space")
     plt.xlabel(F.columns[0])
@@ -252,47 +186,6 @@ def find_best_tradeoff(
     plt.savefig(os.path.join(folder_path, 'objective_space.png'))
 
     return best_index
-
-
-def plot_convergence_by_hypervolume(
-        history_df: pd.DataFrame,
-        folder_path: str,
-        ref_point: np.ndarray = np.array([1.1, 1.1]),
-) -> None:
-    """
-    Plots convergence by hypervolume and saves it to a specified folder.
-
-    Args:
-        history_df (pd.DataFrame): The DataFrame containing optimization history.
-        folder_path (str): The directory path to save the plot.
-        ref_point (np.ndarray, optional): The reference point for
-                   hypervolume calculation. Defaults to np.array([1.1, 1.1]).
-
-    Returns:
-        None: This function creates a plot and saves it to the specified file.
-    """
-    approx_ideal = history_df.filter(like='objective').min(axis=0)
-    approx_nadir = history_df.filter(like='objective').max(axis=0)
-    hv_metric = Hypervolume(
-        ref_point=ref_point,
-        ideal=approx_ideal,
-        nadir=approx_nadir,
-        zero_to_one=True,
-        norm_ref_point=False
-    )
-    hist_F = [history_df[history_df['generation'] == gen].filter(like='objective').to_numpy()
-              for gen in history_df['generation'].unique()]
-    hypervolume_values = [hv_metric.do(_F) for _F in hist_F]
-    n_evals = list(range(1, len(hypervolume_values) + 1))
-
-    sns.set(style="whitegrid")
-    plt.figure(figsize=(7, 5))
-    sns.lineplot(x=n_evals, y=hypervolume_values, marker='.', linestyle='-', color='b', markersize=10)
-    plt.title("Convergence by Hypervolume")
-    plt.xlabel("Function Evaluations")
-    plt.ylabel("Hypervolume")
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'convergence_by_hypervolume.png'))
 
 
 if __name__ == "__main__":
@@ -352,22 +245,20 @@ if __name__ == "__main__":
     # Pareto front for "welded beam" problem
     create_pareto_front_plot(F, folder_path, pymoo_problem="welded_beam")
 
-    # Objective Minimization Over Generations evaluation
-    plot_objective_minimization(history_df, folder_path)
-
     # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
     i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
     print(f'Best regarding ASF:\nPoint #{i}\n{F.iloc[i]}')
 
     # Convergence by Hypervolume
-    plot_convergence_by_hypervolume(history_df, folder_path, ref_point=np.array([1.1, 1.1]))
+    plot_convergence_by_hypervolume(history_df, folder_path, ref_point=np.array([100.0, 0.1]))
 
-
-
-
+    # Convergence for objectives
+    plot_objective_convergence(history_df, folder_path)
 
     # TODO: design space
     # TODO: constrains space
     # TODO: all objectives by time oe epoch
-    # TODO: save table of verbose
+
     # TODO: network diagram
+
+    # TODO: save table of verbose
