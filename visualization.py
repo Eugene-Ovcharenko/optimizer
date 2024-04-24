@@ -139,3 +139,86 @@ def plot_objective_convergence(
         axes[idx].set_xlabel("Generation")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_convergence.png'))
+
+
+def plot_objectives_vs_parameters(
+        X: pd.DataFrame,
+        F: pd.DataFrame,
+        folder_path: str
+) -> None:
+    """
+    Plots scatter plots of each objective against each parameter in subplots.
+
+    Args:
+        X (pd.DataFrame): DataFrame containing parameter values.
+        F (pd.DataFrame): DataFrame containing objective values.
+        folder_path (str): Directory path to save the plot.
+
+    Returns:
+        None: This function creates scatter plots and saves them to the specified file.
+    """
+    num_params = len(X.columns)
+    num_objectives = len(F.columns)
+
+    fig, axes = plt.subplots(num_params, num_objectives, figsize=(15, 10), sharex=False, sharey=False)
+
+    if num_params == 1 or num_objectives == 1:
+        axes = np.array(axes).reshape((num_params, num_objectives))
+
+    for param_idx, param in enumerate(X.columns):
+        for obj_idx, obj in enumerate(F.columns):
+            ax = axes[param_idx, obj_idx]
+            sns.scatterplot(
+                x=X[param],
+                y=F[obj],
+                ax=ax,
+                s=20,
+                color='b',
+                alpha=0.6,
+                hue=F[obj]
+            )
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'objectives_vs_parameters.png'))
+
+
+def plot_constrains_vs_parameters(
+        X: pd.DataFrame,
+        G: pd.DataFrame,
+        folder_path: str
+) -> None:
+    """
+    Plots scatter plots of each constrain against each parameter in subplots.
+
+    Args:
+        X (pd.DataFrame): DataFrame containing parameter values.
+        G (pd.DataFrame): DataFrame containing constrain values.
+        folder_path (str): Directory path to save the plot.
+
+    Returns:
+        None: This function creates scatter plots and saves them to the specified file.
+    """
+
+    num_params = len(X.columns)
+    num_constrains= len(G.columns)
+
+    fig, axes = plt.subplots(num_params, num_constrains, figsize=(30, 20), sharex=False, sharey=False)
+
+    if num_params == 1 or num_constrains == 1:
+        axes = np.array(axes).reshape((num_params, num_constrains))
+
+    for param_idx, param in enumerate(X.columns):
+        for obj_idx, constr in enumerate(G.columns):
+            ax = axes[param_idx, obj_idx]
+            sns.scatterplot(
+                x=X[param],
+                y=G[constr],
+                ax=ax,
+                s=20,
+                color='b',
+                alpha=0.6,
+                hue=G[constr]
+            )
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'constrain_vs_parameters.png'))

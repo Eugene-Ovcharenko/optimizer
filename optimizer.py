@@ -255,10 +255,15 @@ if __name__ == "__main__":
     # Convergence for objectives
     plot_objective_convergence(history_df, folder_path)
 
-    # TODO: design space
-    # TODO: constrains space
-    # TODO: all objectives by time oe epoch
+    # Objectives vs parameters
+    plot_objectives_vs_parameters(X, F, folder_path)
+
+    # Constrains vs parameters
+    plot_constrains_vs_parameters(X, G, folder_path)
+
+
+
 
     # TODO: network diagram
-
     # TODO: save table of verbose
+    # TODO: logging
