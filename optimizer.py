@@ -1,20 +1,19 @@
-import os
+from typing import Tuple, Optional, List
+
 import numpy as np
 import pandas as pd
-from typing import Union, Tuple, Optional, List
-from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.algorithms.moo.nsga3 import NSGA3
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.result import Result
+from pymoo.decomposition.asf import ASF
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
-from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.optimize import minimize
-from pymoo.decomposition.asf import ASF
-from pymoo.core.result import Result
+from pymoo.termination.default import DefaultMultiObjectiveTermination
 
-from visualization import *
 from test_problem import optimization_problem_test
+from visualization import *
 
 
 # Problem implementation
@@ -265,10 +264,3 @@ if __name__ == "__main__":
     plot_parallel_coordinates(X, G, F, folder_path)
 
 
-
-
-
-
-    # TODO: save table of verbose
-    # TODO: logging
-    # TODO: plot from history

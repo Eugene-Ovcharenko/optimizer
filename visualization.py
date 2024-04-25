@@ -1,13 +1,13 @@
 import os
-from typing import Union, Tuple, Optional, List
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
-from pymoo.visualization.scatter import Scatter
+import seaborn as sns
 from pymoo.indicators.hv import Hypervolume
 from pymoo.problems import get_problem
+from pymoo.visualization.scatter import Scatter
 
 problem = get_problem("welded_beam")
 
