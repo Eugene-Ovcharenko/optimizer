@@ -1,5 +1,8 @@
+import os
+import sys
+import datetime
+import logging
 from typing import Tuple, Optional, List
-
 import numpy as np
 import pandas as pd
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -16,7 +19,74 @@ from test_problem import optimization_problem_test
 from visualization import *
 
 
-# Problem implementation
+class MultiStreamHandler(object):
+    """
+    A custom stream handler that writes to multiple outputs (console and file).
+    """
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, buf):
+        # Write the output to all streams
+        for stream in self.streams:
+            stream.write(buf)
+            stream.flush()  # Ensure output is immediately written to the stream
+
+    def flush(self):
+        for stream in self.streams:
+            if stream and not stream.closed:
+                try:
+                    stream.flush()
+                except Exception as e:
+                    logger.error(f"Error while flushing stream: {e}")
+
+
+def setup_logger(
+        folder_path: str,
+        log_file_name: str = 'terminal_log.txt'
+) -> logging.Logger:
+    """
+    Sets up a logger to capture verbose output, writing to both a log file and the console.
+
+    Args:
+        folder_path (str): The directory path to save the log file.
+        log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
+
+    Returns:
+        logging.Logger: Configured logger for capturing terminal output.
+    """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    logger = logging.getLogger('multi_stream_logger')
+    logger.setLevel(logging.INFO)
+
+    # Create a file handler for logging to a file
+    file_handler = logging.FileHandler(os.path.join(folder_path, log_file_name))
+    file_handler.setLevel(logging.INFO)
+
+    # Create a console handler for logging to the console
+    console_handler = logging.StreamHandler()  # Outputs to the console
+    console_handler.setLevel(logging.INFO)
+
+    # Define the log output format
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    # Redirect stdout and stderr to multi-stream handler
+    multi_stream = MultiStreamHandler(sys.stdout, file_handler.stream)
+    sys.stdout = multi_stream  # Redirect standard output
+    sys.stderr = multi_stream  # Redirect standard error
+
+    return logger
+
+
 class Problem(ElementwiseProblem):
     """
     A custom problem implementation for optimization, inheriting from pymoo's ElementwiseProblem.
@@ -60,7 +130,8 @@ class Problem(ElementwiseProblem):
 
         Args:
             x (np.ndarray): An array of parameter values representing a solution.
-            out (dict): A dictionary to store output results. This will be updated with objective values ("F") and constraint values ("G").
+            out (dict): A dictionary to store output results. This will be updated with objective values ("F")
+            and constraint values ("G").
 
         Returns:
             None: This function updates the `out` dictionary with the calculated objective and constraint values.
@@ -189,9 +260,23 @@ def find_best_tradeoff(
 
 if __name__ == "__main__":
 
-    folder_path = 'results'
+    # folder to store results
+    base_folder = 'results'
+    if not os.path.exists(base_folder):
+        os.makedirs(base_folder)
+    existing_subfolders = [f for f in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, f))]
+    subfolders_number = len(existing_subfolders) + 1
+    current_time = datetime.datetime.now()
+    formatted_date = current_time.strftime('%d_%m_%Y')
+    subfolder_name = f"{subfolders_number:03}_{formatted_date}"
+    folder_path = os.path.join(base_folder, subfolder_name)
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
+    print(f"Created folder: {folder_path}")
+
+    # logging
+    logger = setup_logger(folder_path)
+    logger.info("Starting optimization...")
 
     # parameter boundaries (min, max)
     parameters = {
@@ -200,12 +285,15 @@ if __name__ == "__main__":
         'param3': (0.01, 10.0),
         'param4': (0.01, 10.0)
     }
+    print('Parameters:', parameters)
 
     # objectives names
     objectives = ['objective1', 'objective2']
+    print('Objectives:', objectives)
 
     # constraints names
     constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+    print('Constraints:', constraints)
 
     # problem initialization
     problem = Problem(parameters, objectives, constraints)
@@ -226,7 +314,7 @@ if __name__ == "__main__":
         cvtol=1e-6,
         ftol=0.0025,
         period=30,
-        n_max_gen=100,
+        n_max_gen=10,
         n_max_evals=100000
     )
 
@@ -240,27 +328,34 @@ if __name__ == "__main__":
 
     # result storage
     history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
-
-    # Pareto front for "welded beam" problem
-    create_pareto_front_plot(F, folder_path, pymoo_problem="welded_beam")
+    history_df.to_csv(os.path.join(folder_path, 'history.csv'))
+    X.to_csv(os.path.join(folder_path, 'X.csv'))
+    F.to_csv(os.path.join(folder_path, 'F.csv'))
+    G.to_csv(os.path.join(folder_path, 'G.csv'))
+    CV.to_csv(os.path.join(folder_path, 'CV.csv'))
+    opt.to_csv(os.path.join(folder_path, 'opt.csv'))
+    pop.to_csv(os.path.join(folder_path, 'pop.csv'))
+    logger.info("Optimization completed.")
 
     # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
     i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
     print(f'Best regarding ASF:\nPoint #{i}\n{F.iloc[i]}')
+    logger.info("Optimization completed.")
 
-    # Convergence by Hypervolume
-    plot_convergence_by_hypervolume(history_df, folder_path, ref_point=np.array([100.0, 0.1]))
-
-    # Convergence for objectives
-    plot_objective_convergence(history_df, folder_path)
-
-    # Objectives vs parameters
-    plot_objectives_vs_parameters(X, F, folder_path)
-
-    # Constrains vs parameters
-    plot_constrains_vs_parameters(X, G, folder_path)
-
-    # Parallel coordinates plot
-    plot_parallel_coordinates(X, G, F, folder_path)
-
-
+    # # Pareto front for "welded beam" problem
+    # create_pareto_front_plot(F, folder_path, pymoo_problem="welded_beam")
+    #
+    # # Convergence by Hypervolume
+    # plot_convergence_by_hypervolume(history_df, folder_path, ref_point=np.array([100.0, 0.1]))
+    #
+    # # Convergence for objectives
+    # plot_objective_convergence(history_df, folder_path)
+    #
+    # # Objectives vs parameters
+    # plot_objectives_vs_parameters(X, F, folder_path)
+    #
+    # # Constrains vs parameters
+    # plot_constrains_vs_parameters(X, G, folder_path)
+    #
+    # # Parallel coordinates plot
+    # plot_parallel_coordinates(X, G, F, folder_path)
