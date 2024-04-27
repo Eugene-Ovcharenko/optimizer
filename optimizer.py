@@ -1,10 +1,12 @@
 import os
 import sys
+import time
 import datetime
 import logging
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict
 import numpy as np
 import pandas as pd
+import openpyxl
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
@@ -258,16 +260,17 @@ def find_best_tradeoff(
     return best_index
 
 
-def print_algorithm_params(algorithm_params: dict) -> None:
+def print_algorithm_params(algorithm_params: dict) -> dict:
     """
     Prints detailed algorithm parameters, including additional information
-    for crossover and mutation, line by line.
+    for crossover and mutation, line by line, and returns the detailed parameters.
 
     Args:
         algorithm_params (dict): The algorithm parameters as a dictionary.
 
     Returns:
-        None: This function prints details line by line.
+        dict: A dictionary containing the detailed parameters with additional information
+              for crossover and mutation.
     """
     detailed_params = {
         **algorithm_params,
@@ -282,14 +285,17 @@ def print_algorithm_params(algorithm_params: dict) -> None:
             "eta": algorithm_params["mutation"].eta.value
         }
     }
+
     print("Algorithm Parameters:")
     for key, value in detailed_params.items():
-        if isinstance(value, dict):  # If the value is a nested dictionary
+        if isinstance(value, dict):
             print(f"{key}:")
             for sub_key, sub_value in value.items():
                 print(f"  {sub_key}: {sub_value}")
         else:
             print(f"{key}: {value}")
+
+    return detailed_params
 
 
 def print_termination_params(termination_params: dict) -> None:
@@ -307,23 +313,135 @@ def print_termination_params(termination_params: dict) -> None:
         print(f"{key}: {value}")
 
 
-if __name__ == "__main__":
-    # folder to store results
+def create_results_folder(base_folder: str = 'results') -> str:
+    """
+    Creates a subfolder within a specified base folder to store results.
+    The subfolder name is based on the current date and an incrementing number.
+
+    Args:
+        base_folder (str): The base folder where subfolders will be created. Defaults to 'results'.
+
+    Returns:
+        str: The path to the created subfolder.
+    """
+    # Ensure the base folder exists
+    if not os.path.exists(base_folder):
+        os.makedirs(base_folder)
+
+    # Get the list of existing subfolders
+    existing_subfolders = [f for f in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, f))]
+
+    # Determine the next subfolder number and format the current date
+    subfolder_number = len(existing_subfolders) + 1
+    current_time = datetime.datetime.now()
+    formatted_date = current_time.strftime('%d_%m_%Y')
+
+    # Create the new subfolder name
+    subfolder_name = f"{subfolder_number:03}_{formatted_date}"
+    folder_path = os.path.join(base_folder, subfolder_name)
+
+    # Create the subfolder if it doesn't exist
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    # Optionally print a confirmation message
+    print(f"Created folder: {folder_path}")
+
+    # Return the path to the created subfolder
+    return folder_path
+
+
+def find_best_result(F: pd.DataFrame, weights: list[float]) -> int:
+    """
+    Finds the best result in a multi-objective optimization based on ASF.
+
+    Args:
+        F (pd.DataFrame): DataFrame containing the objective values.
+        weights (list[float]): A list of weights to assign to each objective.
+
+    Returns:
+        int: The index of the optimal solution in the DataFrame.
+    """
+    # Check if the sum of weights is approximately 1
+    if not np.isclose(sum(weights), 1):
+        raise ValueError("Weights must sum to 1.")
+
+    # Normalize objective values to find ideal and nadir points
+    approx_ideal = F.min(axis=0)
+    approx_nadir = F.max(axis=0)
+
+    # Normalized F with ideal and nadir points
+    nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
+    nFm = nF.to_numpy(copy=True)
+    decomp = ASF()
+    best_index = decomp.do(nFm, 1 / np.array(weights)).argmin()
+
+    return best_index
+
+
+def save_optimization_summary(
+        folder_path: str,
+        best_index: int,
+        elapsed_time: float,
+        F: pd.DataFrame,
+        X: pd.DataFrame,
+        G: pd.DataFrame
+) -> None:
+    """
+    Save optimization summary to an Excel file with the given details.
+
+    Args:
+        folder_path (str): The path to the folder where results are stored.
+        best_index (int): The index of the best optimization result.
+        elapsed_time (float): Time taken for the optimization.
+        F (pd.DataFrame): DataFrame with objective values.
+        X (pd.DataFrame): DataFrame with parameter values.
+        G (pd.DataFrame): DataFrame with constraint values.
+
+    Returns:
+        None: The function saves the summary to an Excel file in the 'results' folder.
+    """
     base_folder = 'results'
     if not os.path.exists(base_folder):
         os.makedirs(base_folder)
-    existing_subfolders = [f for f in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, f))]
-    subfolders_number = len(existing_subfolders) + 1
-    current_time = datetime.datetime.now()
-    formatted_date = current_time.strftime('%d_%m_%Y')
-    subfolder_name = f"{subfolders_number:03}_{formatted_date}"
-    folder_path = os.path.join(base_folder, subfolder_name)
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-    print(f"Created folder: {folder_path}")
+
+    summary_file = os.path.join(base_folder, 'optimization_summary.xlsx')
+
+    # Create or load workbook and worksheet
+    if os.path.exists(summary_file):
+        workbook = openpyxl.load_workbook(summary_file)
+        worksheet = workbook.active
+    else:
+        workbook = openpyxl.Workbook()
+        worksheet = workbook.active
+        headers = ["Timestamp", "Best Index", "Elapsed Time"] + [f"F_{col}" for col in F.columns] + \
+                  [f"X_{col}" for col in X.columns] + \
+                  [f"G_{col}" for col in G.columns]
+        worksheet.append(headers)
+
+    # Current timestamp for the new row
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Best F, X, and G values, and new row data
+    best_F = F.iloc[best_index].tolist()
+    best_X = X.iloc[best_index].tolist()
+    best_G = G.iloc[best_index].tolist()
+
+    # Append new row with the data
+    new_row = [timestamp, best_index, elapsed_time] + best_F + best_X + best_G
+    worksheet.append(new_row)
+
+    # Save the updated workbook
+    workbook.save(summary_file)
+
+
+if __name__ == "__main__":
+    # folder to store results
+    folder_path = create_results_folder(base_folder='results')
 
     # logging
     logger = setup_logger(folder_path)
+    start_time = time.time()
     logger.info("Starting optimization...")
 
     # parameter boundaries (min, max)
@@ -356,7 +474,7 @@ if __name__ == "__main__":
         "eliminate_duplicates": True
     }
     algorithm = NSGA2(**algorithm_params)
-    print_algorithm_params(algorithm_params)
+    detailed_algo_params = print_algorithm_params(algorithm_params)
 
     # termination criteria
     termination_params = {
@@ -364,7 +482,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 30,
-        "n_max_gen": 10,
+        "n_max_gen": 1000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -377,6 +495,7 @@ if __name__ == "__main__":
                    seed=1,
                    save_history=True,
                    verbose=True)
+    elapsed_time = time.time() - start_time
 
     # result storage
     history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
@@ -388,11 +507,29 @@ if __name__ == "__main__":
     opt.to_csv(os.path.join(folder_path, 'opt.csv'))
     pop.to_csv(os.path.join(folder_path, 'pop.csv'))
 
-    # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
-    i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
-    print(f'Best regarding ASF:\nPoint #{i}\n{F.iloc[i]}')
+    #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
+    weights = [0.5, 0.5]
+    best_index = find_best_result(F, weights)
+    print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
+    print('Elapsed time:', elapsed_time)
     logger.info("Optimization completed.")
 
+    # upload result to integrate table
+    save_optimization_summary(
+        folder_path,
+        best_index,
+        elapsed_time,
+        F,
+        X,
+        G
+    )
+
+
+    # # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
+    # i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
+    # print(f'Best regarding ASF:\nPoint #{i}\n{F.iloc[i]}')
+    # logger.info("Optimization completed.")
+    #
     # # Pareto front for "welded beam" problem
     # create_pareto_front_plot(F, folder_path, pymoo_problem="welded_beam")
     #
