@@ -258,8 +258,56 @@ def find_best_tradeoff(
     return best_index
 
 
-if __name__ == "__main__":
+def print_algorithm_params(algorithm_params: dict) -> None:
+    """
+    Prints detailed algorithm parameters, including additional information
+    for crossover and mutation, line by line.
 
+    Args:
+        algorithm_params (dict): The algorithm parameters as a dictionary.
+
+    Returns:
+        None: This function prints details line by line.
+    """
+    detailed_params = {
+        **algorithm_params,
+        "crossover": {
+            "method": algorithm_params["crossover"].__class__.__name__,
+            "prob": algorithm_params["crossover"].prob.value,
+            "eta": algorithm_params["crossover"].eta.value
+        },
+        "mutation": {
+            "method": algorithm_params["mutation"].__class__.__name__,
+            "prob": algorithm_params["mutation"].prob.value,
+            "eta": algorithm_params["mutation"].eta.value
+        }
+    }
+    print("Algorithm Parameters:")
+    for key, value in detailed_params.items():
+        if isinstance(value, dict):  # If the value is a nested dictionary
+            print(f"{key}:")
+            for sub_key, sub_value in value.items():
+                print(f"  {sub_key}: {sub_value}")
+        else:
+            print(f"{key}: {value}")
+
+
+def print_termination_params(termination_params: dict) -> None:
+    """
+    Prints detailed termination parameters, line by line.
+
+    Args:
+        termination_params (dict): The termination parameters as a dictionary.
+
+    Returns:
+        None: This function prints details line by line.
+    """
+    print("Termination Parameters:")
+    for key, value in termination_params.items():
+        print(f"{key}: {value}")
+
+
+if __name__ == "__main__":
     # folder to store results
     base_folder = 'results'
     if not os.path.exists(base_folder):
@@ -299,24 +347,28 @@ if __name__ == "__main__":
     problem = Problem(parameters, objectives, constraints)
 
     # algorithm initialization
-    algorithm = NSGA2(
-        pop_size=40,
-        n_offsprings=10,
-        sampling=FloatRandomSampling(),
-        crossover=SBX(prob=0.7, eta=30),
-        mutation=PM(prob=0.2, eta=25),
-        eliminate_duplicates=True
-    )
+    algorithm_params = {
+        "pop_size": 40,
+        "n_offsprings": 10,
+        "sampling": FloatRandomSampling(),
+        "crossover": SBX(prob=0.7, eta=30),
+        "mutation": PM(prob=0.2, eta=25),
+        "eliminate_duplicates": True
+    }
+    algorithm = NSGA2(**algorithm_params)
+    print_algorithm_params(algorithm_params)
 
     # termination criteria
-    termination = DefaultMultiObjectiveTermination(
-        xtol=1e-8,
-        cvtol=1e-6,
-        ftol=0.0025,
-        period=30,
-        n_max_gen=10,
-        n_max_evals=100000
-    )
+    termination_params = {
+        "xtol": 1e-8,
+        "cvtol": 1e-6,
+        "ftol": 0.0025,
+        "period": 30,
+        "n_max_gen": 10,
+        "n_max_evals": 100000
+    }
+    termination = DefaultMultiObjectiveTermination(**termination_params)
+    print_termination_params(termination_params)
 
     # run optimization
     res = minimize(problem,
@@ -335,7 +387,6 @@ if __name__ == "__main__":
     CV.to_csv(os.path.join(folder_path, 'CV.csv'))
     opt.to_csv(os.path.join(folder_path, 'opt.csv'))
     pop.to_csv(os.path.join(folder_path, 'pop.csv'))
-    logger.info("Optimization completed.")
 
     # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
     i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
