@@ -62,9 +62,6 @@ Necessary dependencies are listed in `requirements.txt`.
 ---
 
 ## <font color="yellow">TODO</font>
-
-- <font color="yellow">Make integral table for tracking of algorithm perfomance.</font>
-
 - <font color="yellow">Generate all plots after calculations from saved data.</font>
 - <font color="yellow">Try R-NSGA-II.</font>
 - <font color="yellow">Try NSGA-III.</font>

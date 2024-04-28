@@ -385,10 +385,13 @@ def save_optimization_summary(
         elapsed_time: float,
         F: pd.DataFrame,
         X: pd.DataFrame,
-        G: pd.DataFrame
+        G: pd.DataFrame,
+        history_df: pd.DataFrame,
+        termination_params: dict,
+        detailed_algo_params: dict
 ) -> None:
     """
-    Save optimization summary to an Excel file with the given details.
+    Save optimization summary to an Excel file with given details, including termination and detailed algorithm parameters.
 
     Args:
         folder_path (str): The path to the folder where results are stored.
@@ -397,41 +400,64 @@ def save_optimization_summary(
         F (pd.DataFrame): DataFrame with objective values.
         X (pd.DataFrame): DataFrame with parameter values.
         G (pd.DataFrame): DataFrame with constraint values.
+        history_df (pd.DataFrame): DataFrame containing the optimization history.
+        termination_params (dict): Dictionary of termination parameters.
+        detailed_algo_params (dict): Dictionary of detailed algorithm parameters.
 
     Returns:
         None: The function saves the summary to an Excel file in the 'results' folder.
     """
-    base_folder = 'results'
-    if not os.path.exists(base_folder):
-        os.makedirs(base_folder)
-
+    base_folder = folder_path.split(os.path.sep)[0]
     summary_file = os.path.join(base_folder, 'optimization_summary.xlsx')
 
-    # Create or load workbook and worksheet
     if os.path.exists(summary_file):
         workbook = openpyxl.load_workbook(summary_file)
         worksheet = workbook.active
     else:
         workbook = openpyxl.Workbook()
         worksheet = workbook.active
-        headers = ["Timestamp", "Best Index", "Elapsed Time"] + [f"F_{col}" for col in F.columns] + \
-                  [f"X_{col}" for col in X.columns] + \
-                  [f"G_{col}" for col in G.columns]
+
+        headers_algo_params = []
+        for key, value in detailed_algo_params.items():
+            if isinstance(value, dict):
+                headers_algo_params.extend([f"{key}_{sub_key}" for sub_key in value.keys()])
+            else:
+                headers_algo_params.append(f"{key}")
+        headers = (["Timestamp", "Generation", "Best Index", "Elapsed Time"] + \
+                   [f"F_{col}" for col in F.columns] + \
+                   [f"X_{col}" for col in X.columns] + \
+                   [f"G_{col}" for col in G.columns] + \
+                   [f"Term_{key}" for key in termination_params] + \
+                   headers_algo_params + \
+                   ['Folder_path'])
         worksheet.append(headers)
 
-    # Current timestamp for the new row
+    generation_number = history_df['generation'].max()
+
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Best F, X, and G values, and new row data
     best_F = F.iloc[best_index].tolist()
     best_X = X.iloc[best_index].tolist()
     best_G = G.iloc[best_index].tolist()
 
-    # Append new row with the data
-    new_row = [timestamp, best_index, elapsed_time] + best_F + best_X + best_G
-    worksheet.append(new_row)
+    termination_values = [value for key, value in termination_params.items()]
 
-    # Save the updated workbook
+    detailed_algo_values = []  # Add detailed algorithm parameters to the new row
+    for key, value in detailed_algo_params.items():
+        if isinstance(value, dict):
+            # If it's a dictionary, iterate through its items and convert to string
+            detailed_algo_values.extend([str(sub_value) for sub_key, sub_value in value.items()])
+        elif isinstance(value, FloatRandomSampling):
+            # Check if the object is a FloatRandomSampling and use its 'name' attribute
+            detailed_algo_values.append(value.name)
+        else:
+            # Otherwise, convert the value to a string
+            detailed_algo_values.append(str(value))
+
+    new_row = [timestamp, generation_number, best_index, elapsed_time] + \
+              best_F + best_X + best_G + termination_values + detailed_algo_values + [folder_path]
+
+    worksheet.append(new_row)
     workbook.save(summary_file)
 
 
@@ -482,7 +508,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 30,
-        "n_max_gen": 1000,
+        "n_max_gen": 10,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -521,9 +547,11 @@ if __name__ == "__main__":
         elapsed_time,
         F,
         X,
-        G
+        G,
+        history_df,
+        termination_params,
+        detailed_algo_params
     )
-
 
     # # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
     # i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
