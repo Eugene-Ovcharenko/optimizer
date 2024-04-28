@@ -18,7 +18,6 @@ from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 
 from test_problem import optimization_problem_test
-from visualization import *
 
 
 class MultiStreamHandler(object):
@@ -64,24 +63,19 @@ def setup_logger(
     logger = logging.getLogger('multi_stream_logger')
     logger.setLevel(logging.INFO)
 
-    # Create a file handler for logging to a file
     file_handler = logging.FileHandler(os.path.join(folder_path, log_file_name))
     file_handler.setLevel(logging.INFO)
 
-    # Create a console handler for logging to the console
     console_handler = logging.StreamHandler()  # Outputs to the console
     console_handler.setLevel(logging.INFO)
 
-    # Define the log output format
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
 
-    # Add handlers to the logger
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-    # Redirect stdout and stderr to multi-stream handler
     multi_stream = MultiStreamHandler(sys.stdout, file_handler.stream)
     sys.stdout = multi_stream  # Redirect standard output
     sys.stderr = multi_stream  # Redirect standard error
@@ -177,7 +171,6 @@ def extract_optimization_results(
             - opt: DataFrame containing the solutions as a Population object (if available).
             - pop: DataFrame containing the final Population (if available).
     """
-
     history_data = []
     for algo_index, algo in enumerate(res.history):
         for sol in algo.pop:
@@ -219,48 +212,9 @@ def extract_optimization_results(
     return (history_df, X, F, G, CV, opt_df, pop_df)
 
 
-def find_best_tradeoff(
-        F: pd.DataFrame,
-        folder_path: str,
-        objectives_weights: List[float] = [0.5, 0.5]
-) -> int:
-    """
-    Finds the best trade-off between two objectives using Augmented Scalarization Function (ASF) and
-    creates a scatter plot, highlighting the optimal point.
-
-    Args:
-        F (pd.DataFrame): DataFrame containing the objective values.
-        folder_path (str): The directory path to save the plot.
-        objectives_weights (List[float]): A list of weights for the objectives to be used in ASF. Defaults [0.5, 0.5].
-
-    Returns:
-        int: The index of the optimal point with the best trade-off (for objective values DataFrame F).
-    """
-    if not np.isclose(sum(objectives_weights), 1):
-        raise ValueError("The sum of objectives_weights must be 1.")
-    approx_ideal = F.min(axis=0)
-    approx_nadir = F.max(axis=0)
-    nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
-    nFm = nF.to_numpy(copy=True)
-    weights = np.array(objectives_weights)
-    decomp = ASF()
-    best_index = decomp.do(nFm, 1 / weights).argmin()
-
-    plt.figure(figsize=(7, 5))
-    sns.scatterplot(data=F, x=F.columns[0], y=F.columns[1], label="All points",
-                    s=30, color='blue', edgecolor='blue', alpha=0.6)
-    sns.scatterplot(data=F.iloc[[best_index]], x=F.columns[0], y=F.columns[1], label="Best point",
-                    s=200, marker="x", color="red")
-    plt.title("Objective Space")
-    plt.xlabel(F.columns[0])
-    plt.ylabel(F.columns[1])
-    plt.tight_layout()
-    plt.savefig(os.path.join(folder_path, 'objective_space.png'))
-
-    return best_index
-
-
-def print_algorithm_params(algorithm_params: dict) -> dict:
+def print_algorithm_params(
+        algorithm_params: dict
+) -> dict:
     """
     Prints detailed algorithm parameters, including additional information
     for crossover and mutation, line by line, and returns the detailed parameters.
@@ -298,7 +252,9 @@ def print_algorithm_params(algorithm_params: dict) -> dict:
     return detailed_params
 
 
-def print_termination_params(termination_params: dict) -> None:
+def print_termination_params(
+        termination_params: dict
+) -> None:
     """
     Prints detailed termination parameters, line by line.
 
@@ -313,7 +269,9 @@ def print_termination_params(termination_params: dict) -> None:
         print(f"{key}: {value}")
 
 
-def create_results_folder(base_folder: str = 'results') -> str:
+def create_results_folder(
+        base_folder: str = 'results'
+) -> str:
     """
     Creates a subfolder within a specified base folder to store results.
     The subfolder name is based on the current date and an incrementing number.
@@ -324,34 +282,30 @@ def create_results_folder(base_folder: str = 'results') -> str:
     Returns:
         str: The path to the created subfolder.
     """
-    # Ensure the base folder exists
     if not os.path.exists(base_folder):
         os.makedirs(base_folder)
 
-    # Get the list of existing subfolders
     existing_subfolders = [f for f in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, f))]
 
-    # Determine the next subfolder number and format the current date
     subfolder_number = len(existing_subfolders) + 1
     current_time = datetime.datetime.now()
     formatted_date = current_time.strftime('%d_%m_%Y')
 
-    # Create the new subfolder name
     subfolder_name = f"{subfolder_number:03}_{formatted_date}"
     folder_path = os.path.join(base_folder, subfolder_name)
 
-    # Create the subfolder if it doesn't exist
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
-    # Optionally print a confirmation message
     print(f"Created folder: {folder_path}")
 
-    # Return the path to the created subfolder
     return folder_path
 
 
-def find_best_result(F: pd.DataFrame, weights: list[float]) -> int:
+def find_best_result(
+        F: pd.DataFrame,
+        weights: list[float]
+) -> int:
     """
     Finds the best result in a multi-objective optimization based on ASF.
 
@@ -362,15 +316,11 @@ def find_best_result(F: pd.DataFrame, weights: list[float]) -> int:
     Returns:
         int: The index of the optimal solution in the DataFrame.
     """
-    # Check if the sum of weights is approximately 1
-    if not np.isclose(sum(weights), 1):
+    if not np.isclose(sum(weights), 1):      # Check if the sum of weights is approximately 1
         raise ValueError("Weights must sum to 1.")
 
-    # Normalize objective values to find ideal and nadir points
     approx_ideal = F.min(axis=0)
     approx_nadir = F.max(axis=0)
-
-    # Normalized F with ideal and nadir points
     nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
     nFm = nF.to_numpy(copy=True)
     decomp = ASF()
@@ -391,7 +341,8 @@ def save_optimization_summary(
         detailed_algo_params: dict
 ) -> None:
     """
-    Save optimization summary to an Excel file with given details, including termination and detailed algorithm parameters.
+    Save optimization summary to an Excel file with given details,
+    including termination and detailed algorithm parameters.
 
     Args:
         folder_path (str): The path to the folder where results are stored.
@@ -508,7 +459,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 30,
-        "n_max_gen": 10,
+        "n_max_gen": 100,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -552,26 +503,3 @@ if __name__ == "__main__":
         termination_params,
         detailed_algo_params
     )
-
-    # # Find the best trade-off between two objectives F1 and F2 using Augmented Scalarization Function (ASF)
-    # i = find_best_tradeoff(F, folder_path, objectives_weights=[0.5, 0.5])
-    # print(f'Best regarding ASF:\nPoint #{i}\n{F.iloc[i]}')
-    # logger.info("Optimization completed.")
-    #
-    # # Pareto front for "welded beam" problem
-    # create_pareto_front_plot(F, folder_path, pymoo_problem="welded_beam")
-    #
-    # # Convergence by Hypervolume
-    # plot_convergence_by_hypervolume(history_df, folder_path, ref_point=np.array([100.0, 0.1]))
-    #
-    # # Convergence for objectives
-    # plot_objective_convergence(history_df, folder_path)
-    #
-    # # Objectives vs parameters
-    # plot_objectives_vs_parameters(X, F, folder_path)
-    #
-    # # Constrains vs parameters
-    # plot_constrains_vs_parameters(X, G, folder_path)
-    #
-    # # Parallel coordinates plot
-    # plot_parallel_coordinates(X, G, F, folder_path)

@@ -1,13 +1,14 @@
 import os
-
-import matplotlib.pyplot as plt
+from typing import Tuple, Optional, List, Dict
 import numpy as np
 import pandas as pd
-import plotly.express as px
+import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 from pymoo.indicators.hv import Hypervolume
 from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
+from pymoo.decomposition.asf import ASF
 
 problem = get_problem("welded_beam")
 
@@ -175,10 +176,11 @@ def plot_objectives_vs_parameters(
                 x=X[param],
                 y=F[obj],
                 ax=ax,
-                s=20,
+                s=30,
                 color='b',
-                alpha=0.6,
-                hue=F[obj]
+                alpha=0.8,
+                hue=False,
+                legend=False
             )
 
     plt.tight_layout()
@@ -205,7 +207,7 @@ def plot_constrains_vs_parameters(
     num_params = len(X.columns)
     num_constrains = len(G.columns)
 
-    fig, axes = plt.subplots(num_params, num_constrains, figsize=(30, 20), sharex=False, sharey=False)
+    fig, axes = plt.subplots(num_params, num_constrains, figsize=(20, 10), sharex=False, sharey=False)
 
     if num_params == 1 or num_constrains == 1:
         axes = np.array(axes).reshape((num_params, num_constrains))
@@ -217,10 +219,11 @@ def plot_constrains_vs_parameters(
                 x=X[param],
                 y=G[constr],
                 ax=ax,
-                s=20,
+                s=30,
                 color='b',
-                alpha=0.6,
-                hue=G[constr]
+                alpha=0.8,
+                hue=False,
+                legend=False
             )
 
     plt.tight_layout()
@@ -264,3 +267,186 @@ def plot_parallel_coordinates(
     )
     plot_path = os.path.join(folder_path, file_name)
     fig.write_html(plot_path)
+
+
+def plot_best_objectives(
+    F: pd.DataFrame,
+    folder_path: str,
+    weights: list[float] or str = 'equal'
+) -> None:
+    """
+    Finds the best trade-off in a multi-objective optimization based on ASF and creates subplots
+    for each unique pair of objectives to visualize the best solutions.
+
+    Args:
+        F (pd.DataFrame): DataFrame containing the objective values.
+        weights (list[float] or str): A list of weights to assign to each objective, or 'equal' for equal weights. Defaults to 'equal'.
+        folder_path (str): The directory path to save the plots.
+
+    Returns:
+        None: The function plots and saves scatter plots with highlighted best solutions.
+    """
+    num_objectives = F.shape[1]
+
+    if weights == 'equal':  # Determine weights based on the input
+        weights = [1 / num_objectives] * num_objectives
+    elif isinstance(weights, list) and len(weights) == num_objectives:
+        if not np.isclose(sum(weights), 1):
+            raise ValueError("List of weights must sum to 1.")
+    else:
+        raise ValueError("Weights must be either 'equal' or a list of correct length.")
+
+    # Normalize the objective values for ASF
+    approx_ideal = F.min(axis=0)
+    approx_nadir = F.max(axis=0)
+    nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
+    decomp = ASF()
+    best_index = decomp.do(nF.to_numpy(), 1 / np.array(weights)).argmin()
+
+    subplot_count = (num_objectives * (num_objectives - 1)) // 2  # Unique pairs of objectives
+    fig, axes = plt.subplots(1, subplot_count, figsize=(5 * subplot_count, 5))
+    plot_idx = 0
+
+    for i in range(num_objectives):
+        for j in range(i + 1, num_objectives):  # Only create unique pairs
+            ax = axes[plot_idx] if subplot_count > 1 else axes
+            sns.scatterplot(
+                data=F,
+                x=F.columns[i],
+                y=F.columns[j],
+                label="All points",
+                s=30,
+                ax=ax,
+                color='blue',
+                alpha=0.6
+            )
+            sns.scatterplot(
+                data=F.iloc[[best_index]],
+                x=F.columns[i],
+                y=F.columns[j],
+                label="Best point",
+                s=200,
+                marker="x",
+                color="red",
+                ax=ax
+            )
+            ax.set_title(f"Objective {F.columns[i]} vs Objective {F.columns[j]}")
+            ax.set_xlabel(F.columns[i])
+            ax.set_ylabel(F.columns[j])
+            plot_idx += 1
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'objective_space_subplots.png'))
+
+
+def load_optimization_results(
+        folder_path: str,
+        csv_files: Dict[str, str]
+) -> Dict[str, Optional[pd.DataFrame]]:
+    """
+    Load optimization results from CSV files in a specified folder.
+
+    Args:
+        folder_path (str): The path to the folder where CSV files are stored.
+        csv_files (Dict[str, str]): A dictionary mapping DataFrame names to CSV file names.
+
+    Returns:
+        Dict[str, Optional[pd.DataFrame]]: A dictionary with keys representing the names of DataFrames
+            and values being the loaded DataFrames or `None` if the file is not found.
+    """
+    dataframes = {}
+    for df_name, csv_file in csv_files.items():
+        try:
+            dataframes[df_name] = pd.read_csv(os.path.join(folder_path, csv_file), index_col=0)
+        except FileNotFoundError:
+            print(f"Warning: '{csv_file}' not found in '{folder_path}'.")
+            dataframes[df_name] = None
+
+    return dataframes
+
+
+def colored(text, color):
+    if color == "green":
+        return f"\033[92m{text}\033[0m"  # Green text
+    elif color == "red":
+        return f"\033[91m{text}\033[0m"  # Red text
+    return text
+
+
+if __name__ == "__main__":
+
+    # Define the folder path where CSV files are stored
+    folder_path = 'results/006_28_04_2024'
+
+    csv_files = {
+        'history': 'history.csv',
+        'X': 'X.csv',
+        'F': 'F.csv',
+        'G': 'G.csv',
+        'CV': 'CV.csv',
+        'opt': 'opt.csv',
+        'pop': 'pop.csv'
+    }
+    optimization_results = load_optimization_results(folder_path, csv_files)
+
+    # Best trade-off between objectives using ASF
+    try:
+        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
+        print(colored("Best trade-off plot created successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
+
+    # Objectives vs parameters
+    try:
+        plot_objectives_vs_parameters(
+            X=optimization_results['X'],
+            F=optimization_results['F'],
+            folder_path=folder_path
+        )
+        print(colored("Objectives vs Parameters plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Objectives vs Parameters: {str(e)}", "red"))
+
+    # Constrains vs parameters
+    try:
+        plot_constrains_vs_parameters(
+            X=optimization_results['X'],
+            G=optimization_results['G'],
+            folder_path=folder_path
+        )
+        print(colored("Constrains vs Parameters plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Constrains vs Parameters: {str(e)}", "red"))
+
+    # Convergence for objectives
+    try:
+        plot_objective_convergence(optimization_results['history'], folder_path)
+        print(colored("Objective Convergence plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
+
+    # Parallel coordinates plot
+    try:
+        plot_parallel_coordinates(
+            X=optimization_results['X'],
+            G=optimization_results['G'],
+            F=optimization_results['F'],
+            folder_path=folder_path
+        )
+        print(colored("Parallel Coordinates plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Parallel Coordinates: {str(e)}", "red"))
+
+    # Convergence by Hypervolume
+    try:
+        plot_convergence_by_hypervolume(optimization_results['history'], folder_path, ref_point=np.array([100.0, 0.1]))
+        print(colored("Convergence by Hypervolume plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
+
+    # Pareto front for "welded beam" problem
+    try:
+        create_pareto_front_plot(optimization_results['F'], folder_path, pymoo_problem="welded_beam")
+        print(colored("Pareto front plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))
