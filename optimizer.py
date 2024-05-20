@@ -16,23 +16,27 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
-
+from utils.visualize import *
 from test_problem import optimization_problem_test
+import time
+from glob2 import glob
 
 
-class MultiStreamHandler(object):
+class MultiStreamHandler:
     """
-    A custom stream handler that writes to multiple outputs (console and file).
+    A custom stream handler that writes to multiple outputs (console and file),
+    while filtering out messages marked as red.
     """
 
     def __init__(self, *streams):
         self.streams = streams
 
     def write(self, buf):
-        # Write the output to all streams
-        for stream in self.streams:
-            stream.write(buf)
-            stream.flush()  # Ensure output is immediately written to the stream
+        if not buf.strip().startswith('[RED]'):
+            # Write the output to all streams
+            for stream in self.streams:
+                stream.write(buf)
+                stream.flush()  # Ensure output is immediately written to the stream
 
     def flush(self):
         for stream in self.streams:
@@ -40,13 +44,9 @@ class MultiStreamHandler(object):
                 try:
                     stream.flush()
                 except Exception as e:
-                    logger.error(f"Error while flushing stream: {e}")
+                    logging.error(f"Error while flushing stream: {e}")
 
-
-def setup_logger(
-        folder_path: str,
-        log_file_name: str = 'terminal_log.txt'
-) -> logging.Logger:
+def setup_logger(folder_path: str, log_file_name: str = 'terminal_log.txt') -> logging.Logger:
     """
     Sets up a logger to capture verbose output, writing to both a log file and the console.
 
@@ -81,6 +81,15 @@ def setup_logger(
     sys.stderr = multi_stream  # Redirect standard error
 
     return logger
+
+def cleanup_logger(logger):
+    """
+    Cleans up the logger by removing handlers and restoring original stdout and stderr.
+    """
+    for handler in logger.handlers:
+        handler.close()
+        logger.removeHandler(handler)
+    logger.handlers = []
 
 
 class Problem(ElementwiseProblem):
@@ -413,6 +422,12 @@ def save_optimization_summary(
 
 
 if __name__ == "__main__":
+    basic_stdout = sys.stdout
+    basic_stderr = sys.stderr
+
+    for file in glob('./*.rpy*'):
+        os.remove(file)
+
     # folder to store results
     folder_path = create_results_folder(base_folder='results')
 
@@ -423,19 +438,17 @@ if __name__ == "__main__":
 
     # parameter boundaries (min, max)
     parameters = {
-        'param1': (0.01, 10.0),
-        'param2': (0.01, 10.0),
-        'param3': (0.01, 10.0),
-        'param4': (0.01, 10.0)
+        'Width': (1.0, 20.0),
+        'THK': (1.0, 20.0)
     }
     print('Parameters:', parameters)
 
     # objectives names
-    objectives = ['objective1', 'objective2']
+    objectives = ['Displacement', 'Mass']
     print('Objectives:', objectives)
 
     # constraints names
-    constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+    constraints = ['THK_constr', 'Width_constr', 'Smax_constr']
     print('Constraints:', constraints)
 
     # problem initialization
@@ -443,11 +456,11 @@ if __name__ == "__main__":
 
     # algorithm initialization
     algorithm_params = {
-        "pop_size": 40,
-        "n_offsprings": 10,
+        "pop_size": 50,
+        "n_offsprings": 40,
         "sampling": FloatRandomSampling(),
-        "crossover": SBX(prob=0.7, eta=30),
-        "mutation": PM(prob=0.2, eta=25),
+        "crossover": SBX(prob=0.9, eta=30),
+        "mutation": PM(prob=0.3, eta=25),
         "eliminate_duplicates": True
     }
     algorithm = NSGA2(**algorithm_params)
@@ -458,8 +471,8 @@ if __name__ == "__main__":
         "xtol": 1e-8,
         "cvtol": 1e-6,
         "ftol": 0.0025,
-        "period": 30,
-        "n_max_gen": 100,
+        "period": 5,
+        "n_max_gen": 100000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -473,33 +486,117 @@ if __name__ == "__main__":
                    save_history=True,
                    verbose=True)
     elapsed_time = time.time() - start_time
+    try:
+        # result storage
+        history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
+        history_df.to_csv(os.path.join(folder_path, 'history.csv'))
+        X.to_csv(os.path.join(folder_path, 'X.csv'))
+        F.to_csv(os.path.join(folder_path, 'F.csv'))
+        G.to_csv(os.path.join(folder_path, 'G.csv'))
+        CV.to_csv(os.path.join(folder_path, 'CV.csv'))
+        opt.to_csv(os.path.join(folder_path, 'opt.csv'))
+        pop.to_csv(os.path.join(folder_path, 'pop.csv'))
 
-    # result storage
-    history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
-    history_df.to_csv(os.path.join(folder_path, 'history.csv'))
-    X.to_csv(os.path.join(folder_path, 'X.csv'))
-    F.to_csv(os.path.join(folder_path, 'F.csv'))
-    G.to_csv(os.path.join(folder_path, 'G.csv'))
-    CV.to_csv(os.path.join(folder_path, 'CV.csv'))
-    opt.to_csv(os.path.join(folder_path, 'opt.csv'))
-    pop.to_csv(os.path.join(folder_path, 'pop.csv'))
+        #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
+        weights = [0.5, 0.5]
+        best_index = find_best_result(F, weights)
+        print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
+        print('Elapsed time:', elapsed_time)
+        logger.info("Optimization completed.")
 
-    #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
-    weights = [0.5, 0.5]
-    best_index = find_best_result(F, weights)
-    print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
-    print('Elapsed time:', elapsed_time)
-    logger.info("Optimization completed.")
+        # upload result to integrate table
+        save_optimization_summary(
+            folder_path,
+            best_index,
+            elapsed_time,
+            F,
+            X,
+            G,
+            history_df,
+            termination_params,
+            detailed_algo_params
+        )
+    except Exception as e:
+        print(f'Exception {e}')
 
-    # upload result to integrate table
-    save_optimization_summary(
-        folder_path,
-        best_index,
-        elapsed_time,
-        F,
-        X,
-        G,
-        history_df,
-        termination_params,
-        detailed_algo_params
-    )
+    csv_files = {
+        'history': 'history.csv',
+        'X': 'X.csv',
+        'F': 'F.csv',
+        'G': 'G.csv',
+        'CV': 'CV.csv',
+        'opt': 'opt.csv',
+        'pop': 'pop.csv'
+    }
+    optimization_results = load_optimization_results(folder_path, csv_files)
+
+    # Best trade-off between objectives using ASF
+    try:
+        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
+        print(colored("Best trade-off plot created successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
+
+    # Objectives vs parameters
+    try:
+        plot_objectives_vs_parameters(
+            X=optimization_results['X'],
+            F=optimization_results['F'],
+            folder_path=folder_path
+        )
+        print(colored("Objectives vs Parameters plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Objectives vs Parameters: {str(e)}", "red"))
+
+    # Constrains vs parameters
+    try:
+        plot_constrains_vs_parameters(
+            X=optimization_results['X'],
+            G=optimization_results['G'],
+            folder_path=folder_path
+        )
+        print(colored("Constrains vs Parameters plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Constrains vs Parameters: {str(e)}", "red"))
+
+    # Convergence for objectives
+    try:
+        plot_objective_convergence(optimization_results['history'], objectives,
+                                   folder_path)
+        print(colored("Objective Convergence plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
+
+    # Parallel coordinates plot
+    try:
+        plot_parallel_coordinates(
+            X=optimization_results['X'],
+            G=optimization_results['G'],
+            F=optimization_results['F'],
+            objectives=['Width', 'THK'],
+            folder_path=folder_path
+        )
+        print(colored("Parallel Coordinates plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Parallel Coordinates: {str(e)}", "red"))
+
+    # Convergence by Hypervolume
+    try:
+        plot_convergence_by_hypervolume(optimization_results['history'], objectives,
+                                        folder_path, ref_point=np.array([1.0, 0.1, 2.0]))
+        print(colored("Convergence by Hypervolume plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
+
+    # Pareto front for "welded beam" problem
+    try:
+        create_pareto_front_plot(optimization_results['F'], folder_path, pymoo_problem="welded_beam")
+        print(colored("Pareto front plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))
+
+    cleanup_logger(logger)
+    del logger
+    sys.stdout = basic_stdout
+    sys.stderr = basic_stderr
+    # time.sleep(1)

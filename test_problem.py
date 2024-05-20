@@ -1,7 +1,8 @@
 import numpy as np
 from pymoo.problems import get_problem
+from utils.problem import init_procedure, Procedure
 
-problem = get_problem("welded_beam")
+problem = init_procedure(cpus=6, baseName='Beam')
 
 
 def optimization_problem_test(
@@ -28,18 +29,17 @@ def optimization_problem_test(
 
     """
     param_array = np.array(list(parameters.values()))
-    result = problem.evaluate(param_array)
-    objective_values = result[0]
+    result = Procedure.run_procedure(self=problem, params=param_array)
+    objective_values = result.get('objectives')
     objectives_dict = {
-        "objective1": objective_values[0],
-        "objective2": objective_values[1]
+        "Displacement": objective_values.get('Displacement'),
+        "Mass": objective_values.get('Mass')
     }
-    constraint_values = result[1]
+    constraint_values = result.get('constraints')
     constraints_dict = {
-        "constraint1": constraint_values[0],
-        "constraint2": constraint_values[1],
-        "constraint3": constraint_values[2],
-        "constraint4": constraint_values[3]
+        "THK_constr": constraint_values.get('THK_constr'),
+        "Width_constr": constraint_values.get('Width_constr'),
+        "Smax_constr": constraint_values.get('Smax_constr')
     }
 
     return {"objectives": objectives_dict, "constraints": constraints_dict}
