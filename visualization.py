@@ -344,7 +344,7 @@ def load_optimization_results(
         csv_files: Dict[str, str]
 ) -> Dict[str, Optional[pd.DataFrame]]:
     """
-    Load optimization results3 from CSV files in a specified folder.
+    Load optimization results from CSV files in a specified folder.
 
     Args:
         folder_path (str): The path to the folder where CSV files are stored.
@@ -376,7 +376,7 @@ def colored(text, color):
 if __name__ == "__main__":
 
     # Define the folder path where CSV files are stored
-    folder_path = 'results3/006_28_04_2024'
+    folder_path = 'results/006_28_04_2024'
 
     csv_files = {
         'history': 'history.csv',
