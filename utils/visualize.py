@@ -67,10 +67,12 @@ def plot_objective_minimization(
     plt.ylabel("Objective Value")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'convergence_by_objectives.png'))
+    plt.close()
 
 
 def plot_convergence_by_hypervolume(
         history_df: pd.DataFrame,
+        objectives: list[str],
         folder_path: str,
         ref_point: np.ndarray = np.array([1.0, 1.0]),
 ) -> None:
@@ -86,8 +88,8 @@ def plot_convergence_by_hypervolume(
     Returns:
         None: This function creates a plot and saves it to the specified file.
     """
-    approx_ideal = history_df.filter(like='objective').min(axis=0)
-    approx_nadir = history_df.filter(like='objective').max(axis=0)
+    approx_ideal = history_df[objectives].min(axis=0)
+    approx_nadir = history_df[objectives].max(axis=0)
 
     hv_metric = Hypervolume(
         ref_point=ref_point,
@@ -100,7 +102,7 @@ def plot_convergence_by_hypervolume(
     objective_values_per_generation = []
     for gen in unique_generations:
         current_generation_df = history_df[history_df['generation'] == gen]
-        objective_columns = current_generation_df.filter(like='objective')
+        objective_columns = current_generation_df[objectives]
         objective_values_per_generation.append(objective_columns.to_numpy())
     hypervolume_values = [hv_metric.do(_F) for _F in objective_values_per_generation]
     n_evals = list(range(1, len(hypervolume_values) + 1))
@@ -113,10 +115,12 @@ def plot_convergence_by_hypervolume(
     plt.ylabel("Hypervolume")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'convergence_by_hypervolume.png'))
+    plt.close()
 
 
 def plot_objective_convergence(
         history_df: pd.DataFrame,
+        objectives: list[str],
         folder_path: str
 ) -> None:
     """
@@ -130,7 +134,7 @@ def plot_objective_convergence(
         None: This function creates and saves a plot showing objective convergence over generations.
     """
     unique_generations = sorted(history_df['generation'].unique())
-    objective_columns = history_df.filter(like='objective').columns
+    objective_columns = history_df[objectives].columns
     num_objectives = len(objective_columns)
     fig, axes = plt.subplots(1, num_objectives, figsize=(15, 5), sharey=False)
     if num_objectives == 1:
@@ -143,6 +147,7 @@ def plot_objective_convergence(
         axes[idx].set_xlabel("Generation")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_convergence.png'))
+    plt.close()
 
 
 def plot_objectives_vs_parameters(
@@ -185,6 +190,7 @@ def plot_objectives_vs_parameters(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objectives_vs_parameters.png'))
+    plt.close()
 
 
 def plot_constrains_vs_parameters(
@@ -228,12 +234,14 @@ def plot_constrains_vs_parameters(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'constrain_vs_parameters.png'))
+    plt.close()
 
 
 def plot_parallel_coordinates(
         X: pd.DataFrame,
         G: pd.DataFrame,
         F: pd.DataFrame,
+        objectives: list[str],
         folder_path: str,
         file_name: str = 'parallel_coordinates.html'
 ) -> None:
@@ -253,7 +261,9 @@ def plot_parallel_coordinates(
     """
 
     combined_data = pd.concat([X, G, F], axis=1)
-    score = combined_data['objective1'] * combined_data['objective2']
+    score = combined_data[objectives[0]]
+    for obj in objectives[1:-1]:
+        score *= combined_data[obj]
 
     fig = px.parallel_coordinates(
         combined_data,
@@ -337,6 +347,7 @@ def plot_best_objectives(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_space_subplots.png'))
+    plt.close()
 
 
 def load_optimization_results(
@@ -371,82 +382,3 @@ def colored(text, color):
     elif color == "red":
         return f"\033[91m{text}\033[0m"  # Red text
     return text
-
-
-if __name__ == "__main__":
-
-    # Define the folder path where CSV files are stored
-    folder_path = 'results3/006_28_04_2024'
-
-    csv_files = {
-        'history': 'history.csv',
-        'X': 'X.csv',
-        'F': 'F.csv',
-        'G': 'G.csv',
-        'CV': 'CV.csv',
-        'opt': 'opt.csv',
-        'pop': 'pop.csv'
-    }
-    optimization_results = load_optimization_results(folder_path, csv_files)
-
-    # Best trade-off between objectives using ASF
-    try:
-        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
-        print(colored("Best trade-off plot created successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
-
-    # Objectives vs parameters
-    try:
-        plot_objectives_vs_parameters(
-            X=optimization_results['X'],
-            F=optimization_results['F'],
-            folder_path=folder_path
-        )
-        print(colored("Objectives vs Parameters plotted successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to plot Objectives vs Parameters: {str(e)}", "red"))
-
-    # Constrains vs parameters
-    try:
-        plot_constrains_vs_parameters(
-            X=optimization_results['X'],
-            G=optimization_results['G'],
-            folder_path=folder_path
-        )
-        print(colored("Constrains vs Parameters plotted successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to plot Constrains vs Parameters: {str(e)}", "red"))
-
-    # Convergence for objectives
-    try:
-        plot_objective_convergence(optimization_results['history'], folder_path)
-        print(colored("Objective Convergence plotted successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
-
-    # Parallel coordinates plot
-    try:
-        plot_parallel_coordinates(
-            X=optimization_results['X'],
-            G=optimization_results['G'],
-            F=optimization_results['F'],
-            folder_path=folder_path
-        )
-        print(colored("Parallel Coordinates plotted successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to plot Parallel Coordinates: {str(e)}", "red"))
-
-    # Convergence by Hypervolume
-    try:
-        plot_convergence_by_hypervolume(optimization_results['history'], folder_path, ref_point=np.array([100.0, 0.1]))
-        print(colored("Convergence by Hypervolume plotted successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
-
-    # Pareto front for "welded beam" problem
-    try:
-        create_pareto_front_plot(optimization_results['F'], folder_path, pymoo_problem="welded_beam")
-        print(colored("Pareto front plotted successfully.", "green"))
-    except Exception as e:
-        print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))

@@ -1,2 +1,7 @@
-/results/
+/results3/
 /venv/
+/utils/inps/
+/utils/logs/
+/utils/logs/abaqusWF/results/
+/utils/logs/abaqusWF/req.txt
+req.txt
