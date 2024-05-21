@@ -23,13 +23,13 @@ for instance in odb.rootAssembly.instances.keys():
     Elements = odb.rootAssembly.instances[instance].elements
     if len(odb.rootAssembly.instances.keys()) > 0:
         try:
-            path2 = req[0] + '/results/' + instance[0:-7] + '/' + instance + '/'
+            path2 = req[0] + '/results3/' + instance[0:-7] + '/' + instance + '/'
             os.makedirs(path2)
         except:
-            path2 = req[0] + '/results/' + instance[0:-7] + '/' + instance + '/'
+            path2 = req[0] + '/results3/' + instance[0:-7] + '/' + instance + '/'
             print 'folder already exist'
     else:
-        path2 = req[0] + '/results/'
+        path2 = req[0] + '/results3/'
 
     with open(path2 + 'Nodes.txt', 'w') as DataFile:
         for ldata in Nodes:
@@ -45,7 +45,7 @@ for instance in odb.rootAssembly.instances.keys():
             DataFile.write('\n')
     steps = odb.steps.keys()
     # Field output
-    with open(req[0] + '/results/' + instance[0:-7] + '/FramesCount.txt', 'w') as DataFile:
+    with open(req[0] + '/results3/' + instance[0:-7] + '/FramesCount.txt', 'w') as DataFile:
         DataFile.write("%d " % (len(odb.steps[steps[0]].frames)))
 
     l_id = len(odb.steps[steps[0]].frames)-1

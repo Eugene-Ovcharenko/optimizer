@@ -83,24 +83,24 @@ class Procedure:
             delta = datetime.datetime.now() - tt1
             # wbGeom = load_workbook(filename=self.outFileNameLog)
             sheet = self.wbLog['log']
-            with open(pathToAbaqus + '/results/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
+            with open(pathToAbaqus + '/results3/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
                 frames = int(DataFile.read())
             sheet.append(
                 [fileName, ID, Width, THK, frames, 'Odb parse problem', delta])
             self.wbLog.save(self.outFileNameLog)
             self.wbLog.close()
-            # purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
+            # purgeFiles(pathToAbaqus + 'results3/', partName, pathToAbaqus, jobName)
             del delta, sheet
             raise 'Odb parse problem'
         try:
-            with open(pathToAbaqus + '/results/' + partName[0:-5].upper() + '/FramesCount.txt',
+            with open(pathToAbaqus + '/results3/' + partName[0:-5].upper() + '/FramesCount.txt',
                       'r') as DataFile:
                 frames = int(DataFile.read())
         except:
             frames = 0
         try:
 
-            endPath = pathToAbaqus + 'results/'
+            endPath = pathToAbaqus + 'results3/'
             delta = datetime.datetime.now() - tt1
             Smax, Displacement = read_data(
                 pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName,
@@ -116,7 +116,7 @@ class Procedure:
             sheet.append([fileName, ID, Width, THK, frames, str(e), delta])
             self.wbLog.save(self.outFileNameLog)
             self.wbLog.close()
-            purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
+            purgeFiles(pathToAbaqus + 'results3/', partName, pathToAbaqus, jobName)
             del delta, sheet
             raise e
         del partName, jobName, endPath, modelName, inpFileName

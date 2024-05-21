@@ -7,8 +7,8 @@ import os
 # скрипт лежит в папке с расчетами абакуса, не удалять
 def get_history_output(pathName = None, odbFileName = None, cpu=-1):
     # prepare result folder
-    if not os.path.exists(pathName + 'results/'):
-        os.makedirs(pathName + 'results/')
+    if not os.path.exists(pathName + 'results3/'):
+        os.makedirs(pathName + 'results3/')
 
     reqFile = str(pathName) + '/req.txt'
     fid = open(reqFile, 'wt')

@@ -67,6 +67,7 @@ def plot_objective_minimization(
     plt.ylabel("Objective Value")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'convergence_by_objectives.png'))
+    plt.close()
 
 
 def plot_convergence_by_hypervolume(
@@ -114,6 +115,7 @@ def plot_convergence_by_hypervolume(
     plt.ylabel("Hypervolume")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'convergence_by_hypervolume.png'))
+    plt.close()
 
 
 def plot_objective_convergence(
@@ -145,6 +147,7 @@ def plot_objective_convergence(
         axes[idx].set_xlabel("Generation")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_convergence.png'))
+    plt.close()
 
 
 def plot_objectives_vs_parameters(
@@ -187,6 +190,7 @@ def plot_objectives_vs_parameters(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objectives_vs_parameters.png'))
+    plt.close()
 
 
 def plot_constrains_vs_parameters(
@@ -230,6 +234,7 @@ def plot_constrains_vs_parameters(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'constrain_vs_parameters.png'))
+    plt.close()
 
 
 def plot_parallel_coordinates(
@@ -342,6 +347,7 @@ def plot_best_objectives(
 
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_space_subplots.png'))
+    plt.close()
 
 
 def load_optimization_results(
@@ -349,7 +355,7 @@ def load_optimization_results(
         csv_files: Dict[str, str]
 ) -> Dict[str, Optional[pd.DataFrame]]:
     """
-    Load optimization results from CSV files in a specified folder.
+    Load optimization results3 from CSV files in a specified folder.
 
     Args:
         folder_path (str): The path to the folder where CSV files are stored.
