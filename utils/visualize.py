@@ -355,7 +355,7 @@ def load_optimization_results(
         csv_files: Dict[str, str]
 ) -> Dict[str, Optional[pd.DataFrame]]:
     """
-    Load optimization results3 from CSV files in a specified folder.
+    Load optimization results from CSV files in a specified folder.
 
     Args:
         folder_path (str): The path to the folder where CSV files are stored.
