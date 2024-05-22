@@ -19,7 +19,7 @@ from utils.visualize import *
 from utils.problem import init_procedure
 import time
 from glob2 import glob
-from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim
+from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim
 
 
 class MultiStreamHandler:
@@ -438,14 +438,13 @@ if __name__ == "__main__":
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
 
-    problem_name = 'leaflet_single'
-    set_base_name('cont_test')
-    set_s_lim(3.3)
+    # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
+    problem_name = 'test'
+
     pop_size = 80
     offsprings = 40
     crossover_chance = 0.9
     mutation_chance = 0.3
-    set_cpus(6)
     set_problem_name(problem_name)
     crossover_eta = 80
     mutation_eta = 40
@@ -455,10 +454,19 @@ if __name__ == "__main__":
         if problem_name.lower() == 'test':
             typeof = f'Both loss {percent}%'
         elif problem_name.lower() == 'beam':
+            set_base_name('beam_test')
+            set_s_lim(1500)
+            set_cpus(6)
             typeof = 'Abq beam'
         elif problem_name.lower() == 'leaflet_single':
+            set_base_name('single_test')
+            set_s_lim(3.3)
+            set_cpus(6)
             typeof = 'Single leaf'
         elif problem_name.lower() == 'leaflet_contact':
+            set_base_name('cont_test')
+            set_s_lim(3.3)
+            set_cpus(6)
             typeof = 'Contact'
         else:
             typeof = problem_name
@@ -491,6 +499,13 @@ if __name__ == "__main__":
             objectives = ['Displacement', 'Mass']
             # constraints names
             constraints = ['THK_constr', 'Width_constr', 'Smax_constr']
+            ref_point = np.array(
+                [
+                    (max(parameters['THK'])-max(parameters['THK']))/2,
+                    (max(parameters['Width'])-max(parameters['Width']))/2,
+                    get_s_lim()/2
+                ]
+            )
         elif problem_name.lower() == 'test':
             # parameter boundaries (min, max)
             parameters = {
@@ -503,6 +518,7 @@ if __name__ == "__main__":
             objectives = ['objective1', 'objective2']
             # constraints names
             constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+            ref_point = np.array([100, 0.1])
         elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
             parameters = {
                 'HGT': (10, 12),
@@ -516,6 +532,7 @@ if __name__ == "__main__":
             constraints = ['LMN_op_constr',
                            # 'LMN_cl_constr',
                            'Smax_constr']
+            ref_point = np.array([1, 0, get_s_lim()])
         print('Parameters:', parameters)
         print('Objectives:', objectives)
         print('Constraints:', constraints)
@@ -567,8 +584,13 @@ if __name__ == "__main__":
             pop.to_csv(os.path.join(folder_path, 'pop.csv'))
 
             #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
-            weights = [0.5, 0.5]
-            best_index = find_best_result(F, weights)
+
+            # weights = [0.5, 0.5]
+            weights = np.zeros(len(objectives))
+            for v in range(len(weights)):
+                weights[v] = 1/len(objectives)
+
+            best_index = find_best_result(F, list(weights))
             print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
             print('Elapsed time:', elapsed_time)
             logger.info("Optimization completed.")
@@ -654,7 +676,7 @@ if __name__ == "__main__":
         # Convergence by Hypervolume
         try:
             plot_convergence_by_hypervolume(optimization_results['history'], objectives,
-                                            folder_path, ref_point=np.array([100, 0.1]))
+                                            folder_path, ref_point=ref_point)
             print(colored("Convergence by Hypervolume plotted successfully.", "green"))
         except Exception as e:
             print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))

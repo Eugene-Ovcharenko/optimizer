@@ -7,8 +7,10 @@ import random
 import open3d as o3d
 import trimesh
 import pathlib
+from random import random
 from .global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
                               get_cpus, get_base_name, get_s_lim, get_percent)
+from pymoo.problems import get_problem
 from .get_history_output import get_history_output as get_history_output
 from .runabaqus import runabaqus_no_walltime as runabaqus
 from .read_data import read_data
@@ -544,6 +546,29 @@ class Procedure:
 
                 return {"objectives": objectives_dict, "constraints": constraints_dict}
 
+
+        def run_pymoo(self, params) -> dict:
+            problem = get_problem("welded_beam")
+            param_array = np.array(list(params.values()))
+            result = problem.evaluate(param_array)
+            objective_values = result[0]
+            objectives_dict = {
+                "objective1": objective_values[0],
+                "objective2": objective_values[1]
+            }
+            constraint_values = result[1]
+            constraints_dict = {
+                "constraint1": constraint_values[0],
+                "constraint2": constraint_values[1],
+                "constraint3": constraint_values[2],
+                "constraint4": constraint_values[3]
+            }
+
+            # cleanup_log_leaflet()
+            # set_id(ID + 1)
+
+            return {"objectives": objectives_dict, "constraints": constraints_dict}
+
         problem_name = get_problem_name().lower()
         if problem_name == 'beam':
             res = run_beam(self, params)
@@ -551,6 +576,8 @@ class Procedure:
             res = run_leaflet_single(self, params)
         elif problem_name == 'leaflet_contact':
             res = run_leaflet_contact(self, params)
+        elif problem_name == 'test':
+            res = run_pymoo(self, params)
         set_id(get_id() + 1)
         return res
 
@@ -840,5 +867,47 @@ def init_procedure(param_array):
             # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
             "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
         }
-
+    elif problem_name == 'test':
+        problem = get_problem("welded_beam")
+        curr_rand = random() * 100
+        if curr_rand > get_percent():
+            result = problem.evaluate(parameters)
+            objective_values = result[0]
+            objectives_dict = {
+                "objective1": objective_values[0],
+                "objective2": objective_values[1]
+            }
+            constraint_values = result[1]
+            constraints_dict = {
+                "constraint1": constraint_values[0],
+                "constraint2": constraint_values[1],
+                "constraint3": constraint_values[2],
+                "constraint4": constraint_values[3]
+            }
+        else:
+            # param_array = np.array(list(parameters.values()))
+            # result = problem.evaluate(param_array)
+            # objective_values = result[0]
+            # objectives_dict = {
+            #     "objective1": objective_values[0],
+            #     "objective2": objective_values[1]
+            # }
+            objectives_dict = {
+                "objective1": 1000,
+                "objective2": 1000
+            }
+            # constraint_values = result[1]
+            # constraints_dict = {
+            #     "constraint1": constraint_values[0],
+            #     "constraint2": constraint_values[1],
+            #     "constraint3": constraint_values[2],
+            #     "constraint4": constraint_values[3]
+            # }
+            constraints_dict = {
+                "constraint1": 100,
+                "constraint2": 100,
+                "constraint3": 100,
+                "constraint4": 100
+            }
+            print('value losted')
     return {"objectives": objectives_dict, "constraints": constraints_dict}

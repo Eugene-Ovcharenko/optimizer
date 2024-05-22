@@ -8,3 +8,7 @@ plotly~=5.21.0
 seaborn~=0.13.2
 glob2
 xlsxwriter
+open3d
+scipy
+trimesh
+alphashape
