@@ -15,9 +15,11 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
+from utils.global_variable import get_problem_name, get_percent, get_cpus
 from utils.visualize import *
-from utils.problem import init_procedure
+from utils.problem import init_procedure, Procedure
 import time
+from random import random
 from glob2 import glob
 from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim
 
@@ -106,6 +108,7 @@ class Problem(ElementwiseProblem):
         obj_names (list): A list of objective names.
         constr_names (list): A list of constraint names.
     """
+    problem = None
 
     def __init__(self, parameters, objectives, constraints):
         """
@@ -142,7 +145,97 @@ class Problem(ElementwiseProblem):
             None: This function updates the `out` dictionary with the calculated objective and constraint values.
         """
         params = dict(zip(self.param_names, x))
-        result = init_procedure(params)
+        # result = Procedure.run_procedure(self=problem, params=x)
+        self.problem = init_procedure(np.array(x))
+        problem_name = get_problem_name().lower()
+        cpus = get_cpus()
+        parameters = np.array(x)
+        if problem_name == 'beam':
+            result = Procedure.run_procedure(self=self.problem, params=parameters)
+            objective_values = result.get('objectives')
+            objectives_dict = {
+                "Displacement": objective_values.get('Displacement'),
+                "Mass": objective_values.get('Mass')
+            }
+            constraint_values = result.get('constraints')
+            constraints_dict = {
+                "THK_constr": constraint_values.get('THK_constr'),
+                "Width_constr": constraint_values.get('Width_constr'),
+                "Smax_constr": constraint_values.get('Smax_constr')
+            }
+        elif problem_name == 'leaflet_single':
+            result = Procedure.run_procedure(self=self.problem, params=parameters)
+            objective_values = result['objectives']
+            objectives_dict = {
+                'LMN_open': 1 - objective_values['LMN_open'],
+                "LMN_closed": objective_values['LMN_closed'],
+                "Smax": objective_values['Smax']
+                # "I":  objective_values['I']
+            }
+            constraint_values = result['constraints']
+            constraints_dict = {
+                "LMN_op_constr": constraint_values['LMN_op_constr'],
+                # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
+                "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
+            }
+        elif problem_name == 'leaflet_contact':
+            result = Procedure.run_procedure(self=self.problem, params=parameters)
+            objective_values = result['objectives']
+            objectives_dict = {
+                'LMN_open': 1 - objective_values['LMN_open'],
+                "LMN_closed": objective_values['LMN_closed'],
+                "Smax": objective_values['Smax']
+                # "I":  objective_values['I']
+            }
+            constraint_values = result['constraints']
+            constraints_dict = {
+                "LMN_op_constr": constraint_values['LMN_op_constr'],
+                # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
+                "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
+            }
+        elif problem_name == 'test':
+            curr_rand = random() * 100
+            if curr_rand > get_percent():
+                result = problem.evaluate(parameters)
+                objective_values = result[0]
+                objectives_dict = {
+                    "objective1": objective_values[0],
+                    "objective2": objective_values[1]
+                }
+                constraint_values = result[1]
+                constraints_dict = {
+                    "constraint1": constraint_values[0],
+                    "constraint2": constraint_values[1],
+                    "constraint3": constraint_values[2],
+                    "constraint4": constraint_values[3]
+                }
+            else:
+                # param_array = np.array(list(parameters.values()))
+                # result = problem.evaluate(param_array)
+                # objective_values = result[0]
+                # objectives_dict = {
+                #     "objective1": objective_values[0],
+                #     "objective2": objective_values[1]
+                # }
+                objectives_dict = {
+                    "objective1": 1000,
+                    "objective2": 1000
+                }
+                # constraint_values = result[1]
+                # constraints_dict = {
+                #     "constraint1": constraint_values[0],
+                #     "constraint2": constraint_values[1],
+                #     "constraint3": constraint_values[2],
+                #     "constraint4": constraint_values[3]
+                # }
+                constraints_dict = {
+                    "constraint1": 100,
+                    "constraint2": 100,
+                    "constraint3": 100,
+                    "constraint4": 100
+                }
+                print('value losted')
+
         out["F"] = np.array([result['objectives'][name] for name in self.obj_names])
         out["G"] = np.array([result['constraints'][name] for name in self.constr_names])
 
@@ -439,7 +532,7 @@ if __name__ == "__main__":
     basic_stderr = sys.stderr
 
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
-    problem_name = 'test'
+    problem_name = 'leaflet_single'
 
     pop_size = 80
     offsprings = 40

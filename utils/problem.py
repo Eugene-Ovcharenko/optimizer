@@ -666,69 +666,76 @@ def init_procedure(param_array):
         del folders
         base_folder = str(pathlib.Path(__file__).parent.resolve()) + '/logs/'
         existing_subfolders = [f for f in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, f))]
-        subfolders_number = len(existing_subfolders) + 1
+        # subfolders_number = len(existing_subfolders) + 1
         current_time = datetime.datetime.now()
-        formatted_date = current_time.strftime('%d_%m_%Y')
-        subfolder_name = f"{subfolders_number:03}_{formatted_date}"
-        folder_path = os.path.join(base_folder, subfolder_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        print(f"Created folder: {folder_path}")
+        # formatted_date = current_time.strftime('%d_%m_%Y')
+        # subfolder_name = f"{subfolders_number:03}_{formatted_date}"
+        # folder_path = os.path.join(base_folder, subfolder_name)
+        # if not os.path.exists(folder_path):
+        #     os.makedirs(folder_path)
+        folder_path = base_folder
+        # print(f"Created folder: {folder_path}")
 
         # имена и путь xls файлов; базовое имя для инпутов и .odb
-        outFileNameGeom = folder_path + '/geom_' + str(baseName) + '.xlsx'
-        outFileNameResult = folder_path + '/odb_' + str(baseName) + '.xlsx'
-        if logging:
-            configure_log_leaflet(folder_path + '/log')
-        # подготовка таблиц
-        colNamesRes = pd.DataFrame(
-            {'fileName': [], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
-             'ANG, deg': [], 'Lift, mm': [], 'CVT, %': [], 'LAS, mm': [],
-             'EM, MPa': [], 'LMN_open, mm^2/mm^2': [], 'LMN_closed, mm^2/mm^2': [], 'Smax, MPa': [], 'I': [],
-             'Tangent behavior': [], 'Normal Behavior': [],
-             'Contact Area, mm^2': [], 'ORFC, mm^2$': [], 'S_geom, mm^2': [], 'REGURG_AREA, mm^2': [], 'HELI': [],
-             'VMS, MPa': [], 'S11, MPa': [], 'S22, MPa': [], 'S33, MPa': [], 'Smid, MPa': [], 'Smin, MPa': [],
-             'LE11, m/m': [], 'LE22, m/m': [], 'LE33, m/m': [], 'LEmax, m/m': [], 'LEmid, m/m': [], 'LEmin, m/m': [],
-             'VMS_1, MPa': [], 'VMS_2, MPa': [], 'VMS_3, MPa': [],
-             'S11_1, MPa': [], 'S11_2, MPa': [], 'S11_3, MPa': [],
-             'S22_1, MPa': [], 'S22_2, MPa': [], 'S22_3, MPa': [],
-             'S33_1, MPa': [], 'S33_2, MPa': [], 'S33_3, MPa': [],
-             'Smax_1, MPa': [], 'Smax_2, MPa': [], 'Smax_3, MPa': [],
-             'Smid_1, MPa': [], 'Smid_2, MPa': [], 'Smid_3, MPa': [],
-             'Smin_1, MPa': [], 'Smin_2, MPa': [], 'Smin_3, MPa': [],
-             'LE11_1, m/m': [], 'LE11_2, m/m': [], 'LE11_3, m/m': [],
-             'LE22_1, m/m': [], 'LE22_2, m/m': [], 'LE22_3, m/m': [],
-             'LE33_1, m/m': [], 'LE33_2, m/m': [], 'LE33_3, m/m': [],
-             'LEmax_1, m/m': [], 'LEmax_2, m/m': [], 'LEmax_3, m/m': [],
-             'LEmid_1, m/m': [], 'LEmid_2, m/m': [], 'LEmid_3, m/m': [],
-             'LEmin_1, m/m': [], 'LEmin_2, m/m': [], 'LEmin_3, m/m': [],
-             'Elements/p1': [], 'Elements/tot': [], 'FEA time, hh:mm:ss.ms': [], 'Frames': [],
-             'Total time, hh:mm:ss.ms': []})
+        outFileNameGeom = folder_path + '/geom_' + str(baseName) + '_' + str(now) + '.xlsx'
+        outFileNameResult = folder_path + '/odb_' + str(baseName) + '_' + str(now) +  '.xlsx'
+        if not glob(os.path.join(folder_path, outFileNameGeom)):
+            # подготовка таблиц
+            colNamesRes = pd.DataFrame(
+                {'fileName': [], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
+                 'ANG, deg': [], 'Lift, mm': [], 'CVT, %': [], 'LAS, mm': [],
+                 'EM, MPa': [], 'LMN_open, mm^2/mm^2': [], 'LMN_closed, mm^2/mm^2': [], 'Smax, MPa': [], 'I': [],
+                 'Tangent behavior': [], 'Normal Behavior': [],
+                 'Contact Area, mm^2': [], 'ORFC, mm^2$': [], 'S_geom, mm^2': [], 'REGURG_AREA, mm^2': [], 'HELI': [],
+                 'VMS, MPa': [], 'S11, MPa': [], 'S22, MPa': [], 'S33, MPa': [], 'Smid, MPa': [], 'Smin, MPa': [],
+                 'LE11, m/m': [], 'LE22, m/m': [], 'LE33, m/m': [], 'LEmax, m/m': [], 'LEmid, m/m': [], 'LEmin, m/m': [],
+                 'VMS_1, MPa': [], 'VMS_2, MPa': [], 'VMS_3, MPa': [],
+                 'S11_1, MPa': [], 'S11_2, MPa': [], 'S11_3, MPa': [],
+                 'S22_1, MPa': [], 'S22_2, MPa': [], 'S22_3, MPa': [],
+                 'S33_1, MPa': [], 'S33_2, MPa': [], 'S33_3, MPa': [],
+                 'Smax_1, MPa': [], 'Smax_2, MPa': [], 'Smax_3, MPa': [],
+                 'Smid_1, MPa': [], 'Smid_2, MPa': [], 'Smid_3, MPa': [],
+                 'Smin_1, MPa': [], 'Smin_2, MPa': [], 'Smin_3, MPa': [],
+                 'LE11_1, m/m': [], 'LE11_2, m/m': [], 'LE11_3, m/m': [],
+                 'LE22_1, m/m': [], 'LE22_2, m/m': [], 'LE22_3, m/m': [],
+                 'LE33_1, m/m': [], 'LE33_2, m/m': [], 'LE33_3, m/m': [],
+                 'LEmax_1, m/m': [], 'LEmax_2, m/m': [], 'LEmax_3, m/m': [],
+                 'LEmid_1, m/m': [], 'LEmid_2, m/m': [], 'LEmid_3, m/m': [],
+                 'LEmin_1, m/m': [], 'LEmin_2, m/m': [], 'LEmin_3, m/m': [],
+                 'Elements/p1': [], 'Elements/tot': [], 'FEA time, hh:mm:ss.ms': [], 'Frames': [],
+                 'Total time, hh:mm:ss.ms': []})
 
-        colNamesRes_short = pd.DataFrame(
-            {'fileName': [], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
-             'ANG, deg': [], 'Lift, mm': [], 'CVT, %': [], 'LAS, mm': [],
-             'EM, MPa': [], 'LMN_open, mm^2/mm^2': [], 'LMN_closed, mm^2/mm^2': [], 'Smax, MPa': [], 'I': []})
+            colNamesRes_short = pd.DataFrame(
+                {'fileName': [], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
+                 'ANG, deg': [], 'Lift, mm': [], 'CVT, %': [], 'LAS, mm': [],
+                 'EM, MPa': [], 'LMN_open, mm^2/mm^2': [], 'LMN_closed, mm^2/mm^2': [], 'Smax, MPa': [], 'I': []})
 
-        writerRes = pd.ExcelWriter(str(outFileNameResult), engine='xlsxwriter')
-        colNamesRes_short.to_excel(writerRes, sheet_name='short', index=False)
-        colNamesRes.to_excel(writerRes, sheet_name='descriptive', index=False)
-        writerRes._save()
+            writerRes = pd.ExcelWriter(str(outFileNameResult), engine='xlsxwriter')
+            colNamesRes_short.to_excel(writerRes, sheet_name='short', index=False)
+            colNamesRes.to_excel(writerRes, sheet_name='descriptive', index=False)
+            writerRes._save()
 
-        colNamesGeoms = pd.DataFrame(
-            {'fileName': [], 'HGT': [], 'Lstr': [], 'SEC': [], 'DIA': [], 'THK': [],
-             'ANG': [], 'Lift': [], 'CVT': [], 'LAS': [], 'EM': [],
-             'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': []})
+            colNamesGeoms = pd.DataFrame(
+                {'fileName': [], 'HGT': [], 'Lstr': [], 'SEC': [], 'DIA': [], 'THK': [],
+                 'ANG': [], 'Lift': [], 'CVT': [], 'LAS': [], 'EM': [],
+                 'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': []})
 
-        writerGeom = pd.ExcelWriter(str(outFileNameGeom), engine='xlsxwriter')
-        colNamesGeoms.to_excel(writerGeom, sheet_name='log', index=False)
-        writerGeom._save()
+            writerGeom = pd.ExcelWriter(str(outFileNameGeom), engine='xlsxwriter')
+            colNamesGeoms.to_excel(writerGeom, sheet_name='log', index=False)
+            writerGeom._save()
 
-        wbResults = load_workbook(filename=outFileNameResult)
-        wbGeom = load_workbook(filename=outFileNameGeom)
-        sheet_short = wbResults['short']
-        sheet_desc = wbResults['descriptive']
+            wbResults = load_workbook(filename=outFileNameResult)
+            wbGeom = load_workbook(filename=outFileNameGeom)
+            sheet_short = wbResults['short']
+            sheet_desc = wbResults['descriptive']
 
+            if logging:
+                configure_log_leaflet(folder_path + '/log' + '_' + str(now))
+        else:
+            wbResults = load_workbook(filename=outFileNameResult)
+            wbGeom = load_workbook(filename=outFileNameGeom)
+            sheet_short = wbResults['short']
+            sheet_desc = wbResults['descriptive']
         problem = Procedure(cpus=cpus, logging=logging, baseName=baseName, mesh_step=get_mesh_step(),
                             wbResults=wbResults, wbLog=wbGeom,
                             outFileNameResults=outFileNameResult, outFileNameLog=outFileNameGeom,
@@ -820,94 +827,94 @@ def init_procedure(param_array):
 
     problem_name = get_problem_name().lower()
     cpus = get_cpus()
-    parameters = np.array(list(param_array.values()))
+    parameters = param_array
     if problem_name == 'beam':
         problem = init_procedure_beam(cpus=cpus, logging=True, baseName=get_base_name())
-        result = Procedure.run_procedure(self=problem, params=parameters)
-        objective_values = result.get('objectives')
-        objectives_dict = {
-            "Displacement": objective_values.get('Displacement'),
-            "Mass": objective_values.get('Mass')
-        }
-        constraint_values = result.get('constraints')
-        constraints_dict = {
-            "THK_constr": constraint_values.get('THK_constr'),
-            "Width_constr": constraint_values.get('Width_constr'),
-            "Smax_constr": constraint_values.get('Smax_constr')
-        }
+        # result = Procedure.run_procedure(self=problem, params=parameters)
+        # objective_values = result.get('objectives')
+        # objectives_dict = {
+        #     "Displacement": objective_values.get('Displacement'),
+        #     "Mass": objective_values.get('Mass')
+        # }
+        # constraint_values = result.get('constraints')
+        # constraints_dict = {
+        #     "THK_constr": constraint_values.get('THK_constr'),
+        #     "Width_constr": constraint_values.get('Width_constr'),
+        #     "Smax_constr": constraint_values.get('Smax_constr')
+        # }
     elif problem_name == 'leaflet_single':
         problem = init_procedure_leaf_single(cpus=cpus, logging=True, baseName=get_base_name())
-        result = Procedure.run_procedure(self=problem, params=parameters)
-        objective_values = result['objectives']
-        objectives_dict = {
-            'LMN_open': 1 - objective_values['LMN_open'],
-            "LMN_closed": objective_values['LMN_closed'],
-            "Smax": objective_values['Smax']
-            # "I":  objective_values['I']
-        }
-        constraint_values = result['constraints']
-        constraints_dict = {
-            "LMN_op_constr": constraint_values['LMN_op_constr'],
-            # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-            "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
-        }
-    elif problem_name == 'leaflet_contact':
-        problem = init_procedure_leaf_contact(cpus=cpus, logging=True, baseName=get_base_name())
-        result = Procedure.run_procedure(self=problem, params=parameters)
-        objective_values = result['objectives']
-        objectives_dict = {
-            'LMN_open': 1 - objective_values['LMN_open'],
-            "LMN_closed": objective_values['LMN_closed'],
-            "Smax": objective_values['Smax']
-            # "I":  objective_values['I']
-        }
-        constraint_values = result['constraints']
-        constraints_dict = {
-            "LMN_op_constr": constraint_values['LMN_op_constr'],
-            # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-            "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
-        }
+    #     result = Procedure.run_procedure(self=problem, params=parameters)
+    #     objective_values = result['objectives']
+    #     objectives_dict = {
+    #         'LMN_open': 1 - objective_values['LMN_open'],
+    #         "LMN_closed": objective_values['LMN_closed'],
+    #         "Smax": objective_values['Smax']
+    #         # "I":  objective_values['I']
+    #     }
+    #     constraint_values = result['constraints']
+    #     constraints_dict = {
+    #         "LMN_op_constr": constraint_values['LMN_op_constr'],
+    #         # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
+    #         "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
+    #     }
+    # elif problem_name == 'leaflet_contact':
+    #     problem = init_procedure_leaf_contact(cpus=cpus, logging=True, baseName=get_base_name())
+    #     result = Procedure.run_procedure(self=problem, params=parameters)
+    #     objective_values = result['objectives']
+    #     objectives_dict = {
+    #         'LMN_open': 1 - objective_values['LMN_open'],
+    #         "LMN_closed": objective_values['LMN_closed'],
+    #         "Smax": objective_values['Smax']
+    #         # "I":  objective_values['I']
+    #     }
+    #     constraint_values = result['constraints']
+    #     constraints_dict = {
+    #         "LMN_op_constr": constraint_values['LMN_op_constr'],
+    #         # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
+    #         "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
+    #     }
     elif problem_name == 'test':
         problem = get_problem("welded_beam")
-        curr_rand = random() * 100
-        if curr_rand > get_percent():
-            result = problem.evaluate(parameters)
-            objective_values = result[0]
-            objectives_dict = {
-                "objective1": objective_values[0],
-                "objective2": objective_values[1]
-            }
-            constraint_values = result[1]
-            constraints_dict = {
-                "constraint1": constraint_values[0],
-                "constraint2": constraint_values[1],
-                "constraint3": constraint_values[2],
-                "constraint4": constraint_values[3]
-            }
-        else:
-            # param_array = np.array(list(parameters.values()))
-            # result = problem.evaluate(param_array)
-            # objective_values = result[0]
-            # objectives_dict = {
-            #     "objective1": objective_values[0],
-            #     "objective2": objective_values[1]
-            # }
-            objectives_dict = {
-                "objective1": 1000,
-                "objective2": 1000
-            }
-            # constraint_values = result[1]
-            # constraints_dict = {
-            #     "constraint1": constraint_values[0],
-            #     "constraint2": constraint_values[1],
-            #     "constraint3": constraint_values[2],
-            #     "constraint4": constraint_values[3]
-            # }
-            constraints_dict = {
-                "constraint1": 100,
-                "constraint2": 100,
-                "constraint3": 100,
-                "constraint4": 100
-            }
-            print('value losted')
-    return {"objectives": objectives_dict, "constraints": constraints_dict}
+        # curr_rand = random() * 100
+        # if curr_rand > get_percent():
+        #     result = problem.evaluate(parameters)
+        #     objective_values = result[0]
+        #     objectives_dict = {
+        #         "objective1": objective_values[0],
+        #         "objective2": objective_values[1]
+        #     }
+        #     constraint_values = result[1]
+        #     constraints_dict = {
+        #         "constraint1": constraint_values[0],
+        #         "constraint2": constraint_values[1],
+        #         "constraint3": constraint_values[2],
+        #         "constraint4": constraint_values[3]
+        #     }
+        # else:
+        #     # param_array = np.array(list(parameters.values()))
+        #     # result = problem.evaluate(param_array)
+        #     # objective_values = result[0]
+        #     # objectives_dict = {
+        #     #     "objective1": objective_values[0],
+        #     #     "objective2": objective_values[1]
+        #     # }
+        #     objectives_dict = {
+        #         "objective1": 1000,
+        #         "objective2": 1000
+        #     }
+        #     # constraint_values = result[1]
+        #     # constraints_dict = {
+        #     #     "constraint1": constraint_values[0],
+        #     #     "constraint2": constraint_values[1],
+        #     #     "constraint3": constraint_values[2],
+        #     #     "constraint4": constraint_values[3]
+        #     # }
+        #     constraints_dict = {
+        #         "constraint1": 100,
+        #         "constraint2": 100,
+        #         "constraint3": 100,
+        #         "constraint4": 100
+        #     }
+        #     print('value losted')
+    return problem
