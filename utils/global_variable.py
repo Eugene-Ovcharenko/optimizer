@@ -47,7 +47,7 @@ def set_cpus(val):
 
 
 def set_mesh_step(val):
-    params.cpus = val
+    params.mesh_step = val
 
 
 def set_base_name(val):

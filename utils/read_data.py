@@ -387,7 +387,7 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
     wbGeom.save(outFileNameGeom)
     wbGeom.close()
 
-    return LMN_op, LMN_cl, Smax, perf_index
+    return LMN_op, LMN_cl, Smax, VMS, perf_index
 
 def read_data(pathToAbaqus=None, endPath=None, partName=None, Width=-1, ID=-1, frames=-1, Slim=9.9,
               HGT=-1, Lstr=-1, DIA=10, THK=-1, ANG=-1, Lift=-1, CVT=-1, LAS=-1, EM=-1,  SEC=120,

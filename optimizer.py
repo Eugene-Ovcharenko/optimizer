@@ -21,7 +21,7 @@ from utils.problem import init_procedure, Procedure
 import time
 from random import random
 from glob2 import glob
-from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim
+from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id
 
 
 class MultiStreamHandler:
@@ -174,9 +174,9 @@ class Problem(ElementwiseProblem):
             }
             constraint_values = result['constraints']
             constraints_dict = {
-                "LMN_op_constr": constraint_values['LMN_op_constr'],
+                # "LMN_op_constr": constraint_values['LMN_op_constr'],
                 # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-                "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
+                "Smax_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
             }
         elif problem_name == 'leaflet_contact':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
@@ -189,9 +189,9 @@ class Problem(ElementwiseProblem):
             }
             constraint_values = result['constraints']
             constraints_dict = {
-                "LMN_op_constr": constraint_values['LMN_op_constr'],
+                # "LMN_op_constr": constraint_values['LMN_op_constr'],
                 # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-                "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
+                "VMS_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
             }
         elif problem_name == 'test':
             curr_rand = random() * 100
@@ -558,7 +558,7 @@ if __name__ == "__main__":
             typeof = 'Single leaf'
         elif problem_name.lower() == 'leaflet_contact':
             set_base_name('cont_test')
-            set_s_lim(3.3)
+            set_s_lim(1.5)
             set_cpus(6)
             typeof = 'Contact'
         else:
@@ -582,6 +582,7 @@ if __name__ == "__main__":
         start_time = time.time()
         logger.info("Starting optimization...")
 
+        set_id(0)
         if problem_name.lower() == 'beam':
             # parameter boundaries (min, max)
             parameters = {
@@ -614,17 +615,15 @@ if __name__ == "__main__":
             ref_point = np.array([100, 0.1])
         elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
             parameters = {
-                'HGT': (10, 12),
-                'Lstr': (1.5, 2),
-                'THK': (0.2, 1),
-                'ANG': (-5, 30),
-                'CVT': (0.2, 0.8),
-                'LAS': (0.2, 2)
+                'Lstr': (0, 1),
+                'ANG': (-10, 10),
+                'CVT': (0.1, 0.8),
+                'LAS': (0.2, 1.5)
             }
             objectives = ['LMN_open', 'LMN_closed', 'Smax']
-            constraints = ['LMN_op_constr',
+            constraints = [#'LMN_op_constr',
                            # 'LMN_cl_constr',
-                           'Smax_constr']
+                           'VMS_constr']
             ref_point = np.array([1, 0, get_s_lim()])
         print('Parameters:', parameters)
         print('Objectives:', objectives)
@@ -667,13 +666,12 @@ if __name__ == "__main__":
         elapsed_time = time.time() - start_time
         try:
             # result storage
-            history_df, X, F, G, CV, opt, pop = extract_optimization_results(res, problem, folder_path)
+            history_df, X, F, G, CV, _, pop = extract_optimization_results(res, problem, folder_path)
             history_df.to_csv(os.path.join(folder_path, 'history.csv'))
             X.to_csv(os.path.join(folder_path, 'X.csv'))
             F.to_csv(os.path.join(folder_path, 'F.csv'))
             G.to_csv(os.path.join(folder_path, 'G.csv'))
             CV.to_csv(os.path.join(folder_path, 'CV.csv'))
-            opt.to_csv(os.path.join(folder_path, 'opt.csv'))
             pop.to_csv(os.path.join(folder_path, 'pop.csv'))
 
             #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)

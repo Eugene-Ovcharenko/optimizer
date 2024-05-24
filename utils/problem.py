@@ -8,18 +8,18 @@ import open3d as o3d
 import trimesh
 import pathlib
 from random import random
-from .global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
+from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
                               get_cpus, get_base_name, get_s_lim, get_percent)
 from pymoo.problems import get_problem
-from .get_history_output import get_history_output as get_history_output
-from .runabaqus import runabaqus_no_walltime as runabaqus
-from .read_data import read_data
-from .purgeFiles import purgeFiles
-from .logger_leaflet import configure_log_leaflet, cleanup_log_leaflet
-from .generateShell import generateShell
-from .createGeometry import createGeometry
-from .logger_leaflet import log_message
-from .write_inp import write_inp_shell, write_inp_contact, write_inp_beam
+from utils.get_history_output import get_history_output as get_history_output
+from utils.runabaqus import runabaqus_no_walltime as runabaqus
+from utils.read_data import read_data
+from utils.purgeFiles import purgeFiles
+from utils.logger_leaflet import configure_log_leaflet, cleanup_log_leaflet
+from utils.generateShell import generateShell
+from utils.createGeometry import createGeometry
+from utils.logger_leaflet import log_message
+from utils.write_inp import write_inp_shell, write_inp_contact, write_inp_beam
 import os
 
 now = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-').split('.')[0]
@@ -166,13 +166,18 @@ class Procedure:
         def run_leaflet_single(self, params) -> dict:
             ID = get_id()
             try:
-                baseName = self.baseName + '_' + now
+                baseName = self.baseName + '_' + now + '_' + str(ID)
                 tt1 = datetime.datetime.now()
-                HGT, Lstr, THK, ANG, CVT, LAS = params
-                DIA = 23
+                try:
+                    HGT, Lstr, THK, ANG, CVT, LAS = params
+                except:
+                    Lstr, ANG, CVT, LAS = params
+                    HGT = 11
+                    THK = 0.3
+                DIA = 22.98
                 Lift = 0
-                SEC = 114
-                EM = 0.5
+                SEC = 120
+                EM = 3.2
                 mesh_step = self.mesh_step
                 tangent_behavior = 0.05
                 normal_behavior = 0.2
@@ -244,7 +249,7 @@ class Procedure:
                 try:
                     write_inp_shell(
                         fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
-                        BCfix=fixed_bc, THC=THK, Emod=EM, Dens=1.3e-9, JobName=jobName,
+                        BCfix=fixed_bc, THC=THK, Emod=EM, Dens=9e-10, JobName=jobName,
                         ModelName=modelName, partName=partName, MaterialName='PVA', PressType='vent',
                         press_overclosure='linear', tangent_behavior=tangent_behavior,
                         normal_behavior=normal_behavior
@@ -286,7 +291,7 @@ class Procedure:
 
                 try:
                     endPath = pathToAbaqus + 'results/'
-                    LMN_op, LMN_cl, Smax, perf_index = read_data(
+                    LMN_op, LMN_cl, Smax, VMS, perf_index = read_data(
                         pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName,
                         HGT=HGT, Lstr=Lstr, DIA=DIA, THK=THK, ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, EM=EM, SEC=SEC,
                         tangent_behavior=tangent_behavior, normal_behavior=normal_behavior,
@@ -326,7 +331,7 @@ class Procedure:
                 constraints_dict = {
                     "LMN_op_constr": LMN_op,
                     "LMN_cl_constr": LMN_cl,
-                    "Smax_constr": Smax
+                    "VMS_constr": VMS
                 }
 
                 # cleanup_log_leaflet()
@@ -339,13 +344,13 @@ class Procedure:
                 objectives_dict = {
                     'LMN_open': 0.0,
                     "LMN_closed": 1.0,
-                    "Smax": 50
+                    "VMS": 50
                 }
 
                 constraints_dict = {
                     "LMN_op_constr": 0.0,
                     "LMN_cl_constr": 1.0,
-                    "Smax_constr": 50
+                    "VMS_constr": 50
                 }
 
                 # cleanup_log_leaflet()
@@ -570,6 +575,7 @@ class Procedure:
             return {"objectives": objectives_dict, "constraints": constraints_dict}
 
         problem_name = get_problem_name().lower()
+        print(f"current ID is {get_id()}\n")
         if problem_name == 'beam':
             res = run_beam(self, params)
         elif problem_name == 'leaflet_single':
@@ -578,6 +584,7 @@ class Procedure:
             res = run_leaflet_contact(self, params)
         elif problem_name == 'test':
             res = run_pymoo(self, params)
+
         set_id(get_id() + 1)
         return res
 

@@ -119,7 +119,7 @@ def write_inp_beam(fileName=None, JobName='test', ModelName='test', partName='te
 def write_inp_shell(fileName=None, Nodes=None, Elements=None, BCfix=None, THC=None, Emod=-1, Dens=1e-9,
                         JobName=None, ModelName=None, partName=None, tangent_behavior=0.2, normal_behavior=0.2,
                         Time=1.0, frequencyOutput=40, scaligFactor=49, MaterialName='Biomat', PressType='ao',
-                        press_overclosure='hard'):
+                        press_overclosure='hard', poison_ratio=0.45):
     tt2 = datetime.now()
     fileID = open(fileName, 'w')
     ElementType = 'S3'
@@ -201,7 +201,7 @@ def write_inp_shell(fileName=None, Nodes=None, Elements=None, BCfix=None, THC=No
     fileID.write('*Density\n')
     fileID.write(' 1e-09,\n')
     fileID.write('*Elastic\n')
-    fileID.write('%f, 0.45\n' % (Emod))
+    fileID.write('%f, %f\n' % (Emod, poison_ratio))
     fileID.write('**\n')
     fileID.write('** BOUNDARY CONDITIONS\n')
     fileID.write('**\n')
