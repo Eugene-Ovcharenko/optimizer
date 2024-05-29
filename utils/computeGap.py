@@ -52,13 +52,13 @@ def computeOpened(disp=None, nodes=None, mesh_step=0.35):
         init_square += compute_square(nodes[t[0], :], nodes[t[1], :], nodes[t[2], :])
     del t
 
-    # import matplotlib.pyplot as plt
-    # plt.triplot(nodes[:, 0], nodes[:, 1], tri.simplices)
-    # plt.plot(nodes[:, 0], nodes[:, 1], 'o')
+    import matplotlib.pyplot as plt
+    plt.triplot(nodes[:, 0], nodes[:, 1], tri.simplices)
+    plt.plot(nodes[:, 0], nodes[:, 1], 'o')
     #
     shape = alphashape(readedPoints1[:, :-1], alpha=1)
     def_square = shape.area
-    #
+
     # x, y = shape.boundary.xy
     # plt.plot(x, y, color='#6699cc', alpha=0.7,linewidth=3, solid_capstyle='round', zorder=2)
     # plt.plot(readedPoints1[:, 0], readedPoints1[:, 1], 'x')
@@ -73,7 +73,7 @@ def computeOpened(disp=None, nodes=None, mesh_step=0.35):
     # plt.plot(readedPoints1[:, 0], readedPoints1[:, 1], 'x')
     # plt.show()
     # log_message("init_square %.6f - def_square %.6f = %.6f" % (init_square, def_square, init_square - def_square))
-    # del shape, readedPoints1, nodes
+    del shape, readedPoints1, nodes
     return def_square
 
 

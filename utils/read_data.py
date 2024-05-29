@@ -126,8 +126,8 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         newstr = ''.join((ch if ch in '0123456789' else ' ') for ch in stressFiles[1])
         two_step = ([int(i) for i in newstr.split()])[-1]
 
-        closed_step = min(one_step, two_step)
-        opened_step = max(one_step, two_step)
+        closed_step = max(one_step, two_step)
+        opened_step = min(one_step, two_step)
 
         del newstr, one_step, two_step
 
@@ -240,6 +240,7 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         opened_area = maxORFC - (3 * outGap1)
         LMN_op = opened_area / maxORFC
 
+        disp1 = np.loadtxt(foldPath + '-1/' + 'U_' + str(closed_step) + '.txt')
         closed_area = computeClosed_single(disp1=disp1[:, 1:], nodes1=mesh1.nodes[:, 1:], mesh_step=mesh_step)
         LMN_cl = (maxORFC - closed_area) / maxORFC
         del outGap1, mesh1, disp1, closed_step, opened_step

@@ -166,6 +166,7 @@ class Procedure:
         def run_leaflet_single(self, params) -> dict:
             ID = get_id()
             try:
+                log_message(f"current ID is {get_id()}\n")
                 baseName = self.baseName + '_' + now + '_' + str(ID)
                 tt1 = datetime.datetime.now()
                 try:
@@ -361,6 +362,7 @@ class Procedure:
         def run_leaflet_contact(self, params) -> dict:
             ID = get_id()
             try:
+                log_message(f"current ID is {get_id()}\n")
                 baseName = self.baseName + '_' + now
                 tt1 = datetime.datetime.now()
                 HGT, Lstr, THK, ANG, CVT, LAS = params
@@ -551,7 +553,6 @@ class Procedure:
 
                 return {"objectives": objectives_dict, "constraints": constraints_dict}
 
-
         def run_pymoo(self, params) -> dict:
             problem = get_problem("welded_beam")
             param_array = np.array(list(params.values()))
@@ -575,7 +576,6 @@ class Procedure:
             return {"objectives": objectives_dict, "constraints": constraints_dict}
 
         problem_name = get_problem_name().lower()
-        print(f"current ID is {get_id()}\n")
         if problem_name == 'beam':
             res = run_beam(self, params)
         elif problem_name == 'leaflet_single':
@@ -835,93 +835,15 @@ def init_procedure(param_array):
     problem_name = get_problem_name().lower()
     cpus = get_cpus()
     parameters = param_array
+    problem = None
     if problem_name == 'beam':
         problem = init_procedure_beam(cpus=cpus, logging=True, baseName=get_base_name())
-        # result = Procedure.run_procedure(self=problem, params=parameters)
-        # objective_values = result.get('objectives')
-        # objectives_dict = {
-        #     "Displacement": objective_values.get('Displacement'),
-        #     "Mass": objective_values.get('Mass')
-        # }
-        # constraint_values = result.get('constraints')
-        # constraints_dict = {
-        #     "THK_constr": constraint_values.get('THK_constr'),
-        #     "Width_constr": constraint_values.get('Width_constr'),
-        #     "Smax_constr": constraint_values.get('Smax_constr')
-        # }
     elif problem_name == 'leaflet_single':
         problem = init_procedure_leaf_single(cpus=cpus, logging=True, baseName=get_base_name())
-    #     result = Procedure.run_procedure(self=problem, params=parameters)
-    #     objective_values = result['objectives']
-    #     objectives_dict = {
-    #         'LMN_open': 1 - objective_values['LMN_open'],
-    #         "LMN_closed": objective_values['LMN_closed'],
-    #         "Smax": objective_values['Smax']
-    #         # "I":  objective_values['I']
-    #     }
-    #     constraint_values = result['constraints']
-    #     constraints_dict = {
-    #         "LMN_op_constr": constraint_values['LMN_op_constr'],
-    #         # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-    #         "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
-    #     }
-    # elif problem_name == 'leaflet_contact':
-    #     problem = init_procedure_leaf_contact(cpus=cpus, logging=True, baseName=get_base_name())
-    #     result = Procedure.run_procedure(self=problem, params=parameters)
-    #     objective_values = result['objectives']
-    #     objectives_dict = {
-    #         'LMN_open': 1 - objective_values['LMN_open'],
-    #         "LMN_closed": objective_values['LMN_closed'],
-    #         "Smax": objective_values['Smax']
-    #         # "I":  objective_values['I']
-    #     }
-    #     constraint_values = result['constraints']
-    #     constraints_dict = {
-    #         "LMN_op_constr": constraint_values['LMN_op_constr'],
-    #         # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-    #         "Smax_constr": constraint_values['Smax_constr'] - get_s_lim()
-    #     }
+    elif problem_name == 'leaflet_contact':
+        problem = init_procedure_leaf_contact(cpus=cpus, logging=True, baseName=get_base_name())
     elif problem_name == 'test':
         problem = get_problem("welded_beam")
-        # curr_rand = random() * 100
-        # if curr_rand > get_percent():
-        #     result = problem.evaluate(parameters)
-        #     objective_values = result[0]
-        #     objectives_dict = {
-        #         "objective1": objective_values[0],
-        #         "objective2": objective_values[1]
-        #     }
-        #     constraint_values = result[1]
-        #     constraints_dict = {
-        #         "constraint1": constraint_values[0],
-        #         "constraint2": constraint_values[1],
-        #         "constraint3": constraint_values[2],
-        #         "constraint4": constraint_values[3]
-        #     }
-        # else:
-        #     # param_array = np.array(list(parameters.values()))
-        #     # result = problem.evaluate(param_array)
-        #     # objective_values = result[0]
-        #     # objectives_dict = {
-        #     #     "objective1": objective_values[0],
-        #     #     "objective2": objective_values[1]
-        #     # }
-        #     objectives_dict = {
-        #         "objective1": 1000,
-        #         "objective2": 1000
-        #     }
-        #     # constraint_values = result[1]
-        #     # constraints_dict = {
-        #     #     "constraint1": constraint_values[0],
-        #     #     "constraint2": constraint_values[1],
-        #     #     "constraint3": constraint_values[2],
-        #     #     "constraint4": constraint_values[3]
-        #     # }
-        #     constraints_dict = {
-        #         "constraint1": 100,
-        #         "constraint2": 100,
-        #         "constraint3": 100,
-        #         "constraint4": 100
-        #     }
-        #     print('value losted')
+    else:
+        raise Exception(f'Wrong problem name: {problem_name}, you entered: {problem_name}')
     return problem

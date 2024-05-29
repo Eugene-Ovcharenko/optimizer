@@ -176,7 +176,7 @@ class Problem(ElementwiseProblem):
             constraints_dict = {
                 # "LMN_op_constr": constraint_values['LMN_op_constr'],
                 # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-                "Smax_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
+                "VMS_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
             }
         elif problem_name == 'leaflet_contact':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
@@ -269,7 +269,6 @@ def extract_optimization_results(
             - F: DataFrame containing the objective space values.
             - G: DataFrame containing the constraint values (if available).
             - CV: DataFrame containing the aggregated constraint violation (if available).
-            - opt: DataFrame containing the solutions as a Population object (if available).
             - pop: DataFrame containing the final Population (if available).
     """
     history_data = []
@@ -295,13 +294,13 @@ def extract_optimization_results(
     CV = pd.DataFrame() if not hasattr(res, 'CV') or res.CV is None else pd.DataFrame(res.CV, columns=['CV'])
 
 
-    opt_df = None
-    if res.opt is not None:
-        opt_data = [{'X': dict(zip(problem.param_names, ind.X)),
-                     'F': dict(zip(problem.obj_names, ind.F)),
-                     'G': dict(zip(problem.constr_names, ind.G)) if ind.has("G") else None,
-                     'CV': ind.CV if ind.has("CV") else None} for ind in res.opt]
-        opt_df = pd.DataFrame(opt_data)
+    # opt_df = None
+    # if res.opt is not None:
+    #     opt_data = [{'X': dict(zip(problem.param_names, ind.X)),
+    #                  'F': dict(zip(problem.obj_names, ind.F)),
+    #                  'G': dict(zip(problem.constr_names, ind.G)) if ind.has("G") else None,
+    #                  'CV': ind.CV if ind.has("CV") else None} for ind in res.opt]
+    #     opt_df = pd.DataFrame(opt_data)
 
     pop_df = None
     if res.pop is not None:
@@ -311,7 +310,8 @@ def extract_optimization_results(
                      'CV': ind.CV if ind.has("CV") else None} for ind in res.pop]
         pop_df = pd.DataFrame(pop_data)
 
-    return (history_df, X, F, G, CV, opt_df, pop_df)
+    # return (history_df, X, F, G, CV, opt_df, pop_df)
+    return history_df, X, F, G, CV, pop_df
 
 
 def print_algorithm_params(
@@ -542,244 +542,242 @@ if __name__ == "__main__":
     crossover_eta = 80
     mutation_eta = 40
     # for percent in [0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
-    for percent in [0]:
-        # percent = 0
-        if problem_name.lower() == 'test':
-            typeof = f'Both loss {percent}%'
-        elif problem_name.lower() == 'beam':
-            set_base_name('beam_test')
-            set_s_lim(1500)
-            set_cpus(6)
-            typeof = 'Abq beam'
-        elif problem_name.lower() == 'leaflet_single':
-            set_base_name('single_test')
-            set_s_lim(3.3)
-            set_cpus(6)
-            typeof = 'Single leaf'
-        elif problem_name.lower() == 'leaflet_contact':
-            set_base_name('cont_test')
-            set_s_lim(1.5)
-            set_cpus(6)
-            typeof = 'Contact'
-        else:
-            typeof = problem_name
 
+    percent = 0 # synthetic % of lost results
 
-    # for crossover in [0.9, 0.7, 0.5]:
-    #     for mutation in [0.5, 0.3, 0.1]:
-    #         for crossover_eta in range(20, 90, 20):
-    #             for mutation_eta in range(20, 90, 20):
-        set_percent(percent)
-        print(f'Name: {problem_name} > percent: {percent}')
-        for file in glob('./*.rpy*'):
-            os.remove(file)
+    if problem_name.lower() == 'test':
+        typeof = f'Both loss {percent}%'
+    elif problem_name.lower() == 'beam':
+        set_base_name('beam_test')
+        set_s_lim(1500)
+        set_cpus(6)
+        typeof = 'Abq beam'
+    elif problem_name.lower() == 'leaflet_single':
+        set_base_name('single_test')
+        set_s_lim(3.3)
+        set_cpus(6)
+        typeof = 'Single leaf'
+    elif problem_name.lower() == 'leaflet_contact':
+        set_base_name('cont_test')
+        set_s_lim(1.5)
+        set_cpus(6)
+        typeof = 'Contact'
+    else:
+        typeof = problem_name
 
-        # folder to store results
-        folder_path = create_results_folder(base_folder='results')
+# for crossover in [0.9, 0.7, 0.5]:
+#     for mutation in [0.5, 0.3, 0.1]:
+#         for crossover_eta in range(20, 90, 20):
+#             for mutation_eta in range(20, 90, 20):
+    set_percent(percent)
+    for file in glob('./*.rpy*'):
+        os.remove(file)
 
-        # logging
-        logger = setup_logger(folder_path)
-        start_time = time.time()
-        logger.info("Starting optimization...")
+    # folder to store results
+    folder_path = create_results_folder(base_folder='results')
 
-        set_id(0)
-        if problem_name.lower() == 'beam':
-            # parameter boundaries (min, max)
-            parameters = {
-                'Width': (1.0, 20.0),
-                'THK': (1.0, 20.0)
-            }
-            # objectives names
-            objectives = ['Displacement', 'Mass']
-            # constraints names
-            constraints = ['THK_constr', 'Width_constr', 'Smax_constr']
-            ref_point = np.array(
-                [
-                    (max(parameters['THK'])-max(parameters['THK']))/2,
-                    (max(parameters['Width'])-max(parameters['Width']))/2,
-                    get_s_lim()/2
-                ]
-            )
-        elif problem_name.lower() == 'test':
-            # parameter boundaries (min, max)
-            parameters = {
-                'param1': (0.01, 10.0),
-                'param2': (0.01, 10.0),
-                'param3': (0.01, 10.0),
-                'param4': (0.01, 10.0)
-            }
-            # objectives names
-            objectives = ['objective1', 'objective2']
-            # constraints names
-            constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
-            ref_point = np.array([100, 0.1])
-        elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
-            parameters = {
-                'Lstr': (0, 1),
-                'ANG': (-10, 10),
-                'CVT': (0.1, 0.8),
-                'LAS': (0.2, 1.5)
-            }
-            objectives = ['LMN_open', 'LMN_closed', 'Smax']
-            constraints = [#'LMN_op_constr',
-                           # 'LMN_cl_constr',
-                           'VMS_constr']
-            ref_point = np.array([1, 0, get_s_lim()])
-        print('Parameters:', parameters)
-        print('Objectives:', objectives)
-        print('Constraints:', constraints)
+    # logging
+    logger = setup_logger(folder_path)
+    start_time = time.time()
+    logger.info("Starting optimization...")
 
-        # problem initialization
-        problem = Problem(parameters, objectives, constraints)
-
-        # algorithm initialization
-        algorithm_params = {
-            "pop_size": pop_size,
-            "n_offsprings": offsprings,
-            "sampling": FloatRandomSampling(),
-            "crossover": SBX(prob=crossover_chance, eta=crossover_eta),
-            "mutation": PM(prob=mutation_chance, eta=mutation_eta),
-            "eliminate_duplicates": True
+    set_id(0)
+    if problem_name.lower() == 'beam':
+        # parameter boundaries (min, max)
+        parameters = {
+            'Width': (1.0, 20.0),
+            'THK': (1.0, 20.0)
         }
-        algorithm = NSGA2(**algorithm_params)
-        detailed_algo_params = print_algorithm_params(algorithm_params)
-
-        # termination criteria
-        termination_params = {
-            "xtol": 1e-8,
-            "cvtol": 1e-6,
-            "ftol": 0.0025,
-            "period": 5,
-            "n_max_gen": 100,
-            "n_max_evals": 100000
+        # objectives names
+        objectives = ['Displacement', 'Mass']
+        # constraints names
+        constraints = ['THK_constr', 'Width_constr', 'Smax_constr']
+        ref_point = np.array(
+            [
+                (max(parameters['THK'])-max(parameters['THK']))/2,
+                (max(parameters['Width'])-max(parameters['Width']))/2,
+                get_s_lim()/2
+            ]
+        )
+    elif problem_name.lower() == 'test':
+        # parameter boundaries (min, max)
+        parameters = {
+            'param1': (0.01, 10.0),
+            'param2': (0.01, 10.0),
+            'param3': (0.01, 10.0),
+            'param4': (0.01, 10.0)
         }
-        termination = DefaultMultiObjectiveTermination(**termination_params)
-        print_termination_params(termination_params)
-
-        # run optimization
-        res = minimize(problem,
-                       algorithm,
-                       termination,
-                       seed=1,
-                       save_history=True,
-                       verbose=True)
-        elapsed_time = time.time() - start_time
-        try:
-            # result storage
-            history_df, X, F, G, CV, _, pop = extract_optimization_results(res, problem, folder_path)
-            history_df.to_csv(os.path.join(folder_path, 'history.csv'))
-            X.to_csv(os.path.join(folder_path, 'X.csv'))
-            F.to_csv(os.path.join(folder_path, 'F.csv'))
-            G.to_csv(os.path.join(folder_path, 'G.csv'))
-            CV.to_csv(os.path.join(folder_path, 'CV.csv'))
-            pop.to_csv(os.path.join(folder_path, 'pop.csv'))
-
-            #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
-
-            # weights = [0.5, 0.5]
-            weights = np.zeros(len(objectives))
-            for v in range(len(weights)):
-                weights[v] = 1/len(objectives)
-
-            best_index = find_best_result(F, list(weights))
-            print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
-            print('Elapsed time:', elapsed_time)
-            logger.info("Optimization completed.")
-
-
-            # upload result to integrate table
-            save_optimization_summary(
-                typeof,
-                folder_path,
-                best_index,
-                elapsed_time,
-                F,
-                X,
-                G,
-                history_df,
-                termination_params,
-                detailed_algo_params
-            )
-        except Exception as e:
-            print(f'Exception {e}')
-
-        csv_files = {
-            'history': 'history.csv',
-            'X': 'X.csv',
-            'F': 'F.csv',
-            'G': 'G.csv',
-            'CV': 'CV.csv',
-            'opt': 'opt.csv',
-            'pop': 'pop.csv'
+        # objectives names
+        objectives = ['objective1', 'objective2']
+        # constraints names
+        constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+        ref_point = np.array([100, 0.1])
+    elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
+        parameters = {
+            'Lstr': (0, 1),
+            'ANG': (-10, 10),
+            'CVT': (0.1, 0.8),
+            'LAS': (0.2, 1.5)
         }
-        optimization_results = load_optimization_results(folder_path, csv_files)
+        objectives = ['LMN_open', 'LMN_closed', 'Smax']
+        constraints = [#'LMN_op_constr',
+                       # 'LMN_cl_constr',
+                       'VMS_constr']
+        ref_point = np.array([1, 0, get_s_lim()])
+    print('Parameters:', parameters)
+    print('Objectives:', objectives)
+    print('Constraints:', constraints)
 
-        # Best trade-off between objectives using ASF
-        try:
-            plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
-            print(colored("Best trade-off plot created successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
+    # problem initialization
+    problem = Problem(parameters, objectives, constraints)
 
-        # Objectives vs parameters
-        try:
-            plot_objectives_vs_parameters(
-                X=optimization_results['X'],
-                F=optimization_results['F'],
-                folder_path=folder_path
-            )
-            print(colored("Objectives vs Parameters plotted successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to plot Objectives vs Parameters: {str(e)}", "red"))
+    # algorithm initialization
+    algorithm_params = {
+        "pop_size": pop_size,
+        "n_offsprings": offsprings,
+        "sampling": FloatRandomSampling(),
+        "crossover": SBX(prob=crossover_chance, eta=crossover_eta),
+        "mutation": PM(prob=mutation_chance, eta=mutation_eta),
+        "eliminate_duplicates": True
+    }
+    algorithm = NSGA2(**algorithm_params)
+    detailed_algo_params = print_algorithm_params(algorithm_params)
 
-        # Constrains vs parameters
-        try:
-            plot_constrains_vs_parameters(
-                X=optimization_results['X'],
-                G=optimization_results['G'],
-                folder_path=folder_path
-            )
-            print(colored("Constrains vs Parameters plotted successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to plot Constrains vs Parameters: {str(e)}", "red"))
+    # termination criteria
+    termination_params = {
+        "xtol": 1e-8,
+        "cvtol": 1e-6,
+        "ftol": 0.0025,
+        "period": 5,
+        "n_max_gen": 100,
+        "n_max_evals": 100000
+    }
+    termination = DefaultMultiObjectiveTermination(**termination_params)
+    print_termination_params(termination_params)
 
-        # Convergence for objectives
-        try:
-            plot_objective_convergence(optimization_results['history'], objectives,
-                                       folder_path)
-            print(colored("Objective Convergence plotted successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
+    # run optimization
+    res = minimize(problem,
+                   algorithm,
+                   termination,
+                   seed=1,
+                   save_history=True,
+                   verbose=True)
+    elapsed_time = time.time() - start_time
+    try:
+        # result storage
+        history_df, X, F, G, CV, _, pop = extract_optimization_results(res, problem, folder_path)
+        history_df.to_csv(os.path.join(folder_path, 'history.csv'))
+        X.to_csv(os.path.join(folder_path, 'X.csv'))
+        F.to_csv(os.path.join(folder_path, 'F.csv'))
+        G.to_csv(os.path.join(folder_path, 'G.csv'))
+        CV.to_csv(os.path.join(folder_path, 'CV.csv'))
+        pop.to_csv(os.path.join(folder_path, 'pop.csv'))
 
-        # Parallel coordinates plot
-        try:
-            plot_parallel_coordinates(
-                X=optimization_results['X'],
-                G=optimization_results['G'],
-                F=optimization_results['F'],
-                objectives=objectives,
-                folder_path=folder_path
-            )
-            print(colored("Parallel Coordinates plotted successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to plot Parallel Coordinates: {str(e)}", "red"))
+        #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
 
-        # Convergence by Hypervolume
-        try:
-            plot_convergence_by_hypervolume(optimization_results['history'], objectives,
-                                            folder_path, ref_point=ref_point)
-            print(colored("Convergence by Hypervolume plotted successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
+        # weights = [0.5, 0.5]
+        weights = np.zeros(len(objectives))
+        for v in range(len(weights)):
+            weights[v] = 1/len(objectives)
 
-        # Pareto front for "welded beam" problem
-        try:
-            create_pareto_front_plot(optimization_results['F'], folder_path, pymoo_problem="welded_beam")
-            print(colored("Pareto front plotted successfully.", "green"))
-        except Exception as e:
-            print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))
+        best_index = find_best_result(F, list(weights))
+        print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
+        print('Elapsed time:', elapsed_time)
+        logger.info("Optimization completed.")
 
-        cleanup_logger(logger)
-        del logger
-        sys.stdout = basic_stdout
-        sys.stderr = basic_stderr
+
+        # upload result to integrate table
+        save_optimization_summary(
+            typeof,
+            folder_path,
+            best_index,
+            elapsed_time,
+            F,
+            X,
+            G,
+            history_df,
+            termination_params,
+            detailed_algo_params
+        )
+    except Exception as e:
+        print(f'Exception {e}')
+
+    csv_files = {
+        'history': 'history.csv',
+        'X': 'X.csv',
+        'F': 'F.csv',
+        'G': 'G.csv',
+        'CV': 'CV.csv',
+        'pop': 'pop.csv'
+    }
+    optimization_results = load_optimization_results(folder_path, csv_files)
+
+    # Best trade-off between objectives using ASF
+    try:
+        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
+        print(colored("Best trade-off plot created successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
+
+    # Objectives vs parameters
+    try:
+        plot_objectives_vs_parameters(
+            X=optimization_results['X'],
+            F=optimization_results['F'],
+            folder_path=folder_path
+        )
+        print(colored("Objectives vs Parameters plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Objectives vs Parameters: {str(e)}", "red"))
+
+    # Constrains vs parameters
+    try:
+        plot_constrains_vs_parameters(
+            X=optimization_results['X'],
+            G=optimization_results['G'],
+            folder_path=folder_path
+        )
+        print(colored("Constrains vs Parameters plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Constrains vs Parameters: {str(e)}", "red"))
+
+    # Convergence for objectives
+    try:
+        plot_objective_convergence(optimization_results['history'], objectives,
+                                   folder_path)
+        print(colored("Objective Convergence plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
+
+    # Parallel coordinates plot
+    try:
+        plot_parallel_coordinates(
+            X=optimization_results['X'],
+            G=optimization_results['G'],
+            F=optimization_results['F'],
+            objectives=objectives,
+            folder_path=folder_path
+        )
+        print(colored("Parallel Coordinates plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Parallel Coordinates: {str(e)}", "red"))
+
+    # Convergence by Hypervolume
+    try:
+        plot_convergence_by_hypervolume(optimization_results['history'], objectives,
+                                        folder_path, ref_point=ref_point)
+        print(colored("Convergence by Hypervolume plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
+
+    # Pareto front for "welded beam" problem
+    try:
+        create_pareto_front_plot(optimization_results['F'], folder_path, pymoo_problem="welded_beam")
+        print(colored("Pareto front plotted successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))
+
+    cleanup_logger(logger)
+    del logger
+    sys.stdout = basic_stdout
+    sys.stderr = basic_stderr

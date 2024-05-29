@@ -15,7 +15,7 @@ def purgeFiles(endPath: str, partName: str, pathToAbaqus: str, jobName: str):
             os.system(rm_com + pathToAbaqus + jobName + ".simdir")
 
     # Get all files matching the pattern
-    all_files = glob(os.path.join(pathToAbaqus, jobName))
+    all_files = glob(os.path.join(pathToAbaqus, jobName) + '*')
 
     # Filter out files with extensions you want to exclude
     files_to_delete = [
