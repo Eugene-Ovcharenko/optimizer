@@ -22,6 +22,7 @@ import time
 from random import random
 from glob2 import glob
 from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id
+import pickle
 
 
 class MultiStreamHandler:
@@ -47,6 +48,7 @@ class MultiStreamHandler:
                     stream.flush()
                 except Exception as e:
                     logging.error(f"Error while flushing stream: {e}")
+
 
 def setup_logger(folder_path: str, log_file_name: str = 'terminal_log.txt') -> logging.Logger:
     """
@@ -83,6 +85,7 @@ def setup_logger(folder_path: str, log_file_name: str = 'terminal_log.txt') -> l
     sys.stderr = multi_stream  # Redirect standard error
 
     return logger
+
 
 def cleanup_logger(logger):
     """
@@ -239,6 +242,7 @@ class Problem(ElementwiseProblem):
         out["F"] = np.array([result['objectives'][name] for name in self.obj_names])
         out["G"] = np.array([result['constraints'][name] for name in self.constr_names])
 
+
 def extract_optimization_results(
         res: Result,
         problem: ElementwiseProblem,
@@ -292,7 +296,6 @@ def extract_optimization_results(
     G = pd.DataFrame() if not hasattr(res, 'G') or res.G is None else pd.DataFrame(res.G, columns=problem.constr_names)
 
     CV = pd.DataFrame() if not hasattr(res, 'CV') or res.CV is None else pd.DataFrame(res.CV, columns=['CV'])
-
 
     # opt_df = None
     # if res.opt is not None:
@@ -418,7 +421,7 @@ def find_best_result(
     Returns:
         int: The index of the optimal solution in the DataFrame.
     """
-    if not np.isclose(sum(weights), 1):      # Check if the sum of weights is approximately 1
+    if not np.isclose(sum(weights), 1):  # Check if the sum of weights is approximately 1
         raise ValueError("Weights must sum to 1.")
 
     approx_ideal = F.min(axis=0)
@@ -527,6 +530,11 @@ def save_optimization_summary(
     workbook.save(summary_file)
 
 
+def save_object(obj, filepath, filename):
+    with open(os.path.join(folder_path, filename), 'wb') as outp:  # Overwrites any existing file.
+        pickle.dump(obj, outp, pickle.HIGHEST_PROTOCOL)
+
+
 if __name__ == "__main__":
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
@@ -543,7 +551,7 @@ if __name__ == "__main__":
     mutation_eta = 40
     # for percent in [0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
 
-    percent = 0 # synthetic % of lost results
+    percent = 0  # synthetic % of lost results
 
     if problem_name.lower() == 'test':
         typeof = f'Both loss {percent}%'
@@ -565,10 +573,10 @@ if __name__ == "__main__":
     else:
         typeof = problem_name
 
-# for crossover in [0.9, 0.7, 0.5]:
-#     for mutation in [0.5, 0.3, 0.1]:
-#         for crossover_eta in range(20, 90, 20):
-#             for mutation_eta in range(20, 90, 20):
+    # for crossover in [0.9, 0.7, 0.5]:
+    #     for mutation in [0.5, 0.3, 0.1]:
+    #         for crossover_eta in range(20, 90, 20):
+    #             for mutation_eta in range(20, 90, 20):
     set_percent(percent)
     for file in glob('./*.rpy*'):
         os.remove(file)
@@ -594,9 +602,9 @@ if __name__ == "__main__":
         constraints = ['THK_constr', 'Width_constr', 'Smax_constr']
         ref_point = np.array(
             [
-                (max(parameters['THK'])-max(parameters['THK']))/2,
-                (max(parameters['Width'])-max(parameters['Width']))/2,
-                get_s_lim()/2
+                (max(parameters['THK']) - max(parameters['THK'])) / 2,
+                (max(parameters['Width']) - max(parameters['Width'])) / 2,
+                get_s_lim() / 2
             ]
         )
     elif problem_name.lower() == 'test':
@@ -620,9 +628,9 @@ if __name__ == "__main__":
             'LAS': (0.2, 1.5)
         }
         objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        constraints = [#'LMN_op_constr',
-                       # 'LMN_cl_constr',
-                       'VMS_constr']
+        constraints = [  # 'LMN_op_constr',
+            # 'LMN_cl_constr',
+            'VMS_constr']
         ref_point = np.array([1, 0, get_s_lim()])
     print('Parameters:', parameters)
     print('Objectives:', objectives)
@@ -663,9 +671,12 @@ if __name__ == "__main__":
                    save_history=True,
                    verbose=True)
     elapsed_time = time.time() - start_time
+
+    save_object(res, folder_path, 'results_object.pkl')
+
     try:
         # result storage
-        history_df, X, F, G, CV, _, pop = extract_optimization_results(res, problem, folder_path)
+        history_df, X, F, G, CV, pop = extract_optimization_results(res, problem, folder_path)
         history_df.to_csv(os.path.join(folder_path, 'history.csv'))
         X.to_csv(os.path.join(folder_path, 'X.csv'))
         F.to_csv(os.path.join(folder_path, 'F.csv'))
@@ -678,13 +689,12 @@ if __name__ == "__main__":
         # weights = [0.5, 0.5]
         weights = np.zeros(len(objectives))
         for v in range(len(weights)):
-            weights[v] = 1/len(objectives)
+            weights[v] = 1 / len(objectives)
 
         best_index = find_best_result(F, list(weights))
         print(f'Best regarding ASF:\nPoint #{best_index}\n{F.iloc[best_index]}')
         print('Elapsed time:', elapsed_time)
         logger.info("Optimization completed.")
-
 
         # upload result to integrate table
         save_optimization_summary(
@@ -764,15 +774,19 @@ if __name__ == "__main__":
 
     # Convergence by Hypervolume
     try:
-        plot_convergence_by_hypervolume(optimization_results['history'], objectives,
-                                        folder_path, ref_point=ref_point)
+        plot_convergence_by_hypervolume(optimization_results['history'], objectives, folder_path)
         print(colored("Convergence by Hypervolume plotted successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
 
     # Pareto front for "welded beam" problem
     try:
-        create_pareto_front_plot(optimization_results['F'], folder_path, pymoo_problem="welded_beam")
+        create_pareto_front_plot(
+            csv_path=os.path.join(folder_path, 'history.csv'),
+            data=optimization_results['F'],
+            folder_path=folder_path,
+            pymoo_problem="welded_beam"
+        )
         print(colored("Pareto front plotted successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))

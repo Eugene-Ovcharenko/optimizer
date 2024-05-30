@@ -9,30 +9,121 @@ from pymoo.indicators.hv import Hypervolume
 from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
 from pymoo.decomposition.asf import ASF
+from .global_variable import get_problem_name
 
 problem = get_problem("welded_beam")
 
 
+
 def create_pareto_front_plot(
+        csv_path: str,
         data: pd.DataFrame,
         folder_path: str,
         pymoo_problem: str = "welded_beam"
 ) -> None:
-    """
-    Creates and saves a scatter plot showing the Pareto front for a specified problem along with additional data.
 
-    Args:
-        data (pd.DataFrame): A DtaFrame with objective values.
-        folder_path (str): The folder path where the plot will be saved.
-        pymoo_problem (str): The name of the problem to get the Pareto front from. Defaults to "welded_beam".
+    def create_pareto_front_plot_pymoo(
+            data: pd.DataFrame,
+            folder_path: str,
+            pymoo_problem: str = "welded_beam"
+    ) -> None:
+        """
+        Creates and saves a scatter plot showing the Pareto front for a specified problem along with additional data.
 
-    Returns:
-        None: The function saves the plot to the specified folder and does not return any value.
-    """
-    pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
-    pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line", color="black")
-    pymoo_scatter_plot.add(data.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
-    pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
+        Args:
+            data (pd.DataFrame): A DtaFrame with objective values.
+            folder_path (str): The folder path where the plot will be saved.
+            pymoo_problem (str): The name of the problem to get the Pareto front from. Defaults to "welded_beam".
+
+        Returns:
+            None: The function saves the plot to the specified folder and does not return any value.
+        """
+        pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
+        pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line", color="black")
+        pymoo_scatter_plot.add(data.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
+        pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
+
+    def create_pareto_front_plot_fea(
+            csv_path: str,
+            folder_path: str,
+    ) -> None:
+        """
+        Creates and saves a scatter plot showing the Pareto front for a specified problem along with additional data.
+
+        Args:
+            csv_path (str): Path to the CSV file with the FEA results.
+            folder_path (str): The folder path where the plot will be saved.
+            pymoo_problem (str): The name of the problem to get the Pareto front from. Defaults to "welded_beam".
+
+        Returns:
+            None: The function saves the plot to the specified folder and does not return any value.
+        """
+
+        # Load FEA results from CSV
+        data = pd.read_csv(csv_path)
+
+        # Extract objective values as a list of tuples
+        points = list(zip(data['LMN_open'], data['LMN_closed'], data['Smax']))
+
+        def is_dominated(point, others):
+            return any(
+                (other[0] < point[0] and other[1] <= point[1] and other[2] <= point[2]) or
+                (other[0] <= point[0] and other[1] < point[1] and other[2] <= point[2]) or
+                (other[0] <= point[0] and other[1] <= point[1] and other[2] < point[2])
+                for other in others
+            )
+
+        non_dominated_points = [point for point in points if not is_dominated(point, points)]
+
+        # Convert non-dominated points to a DataFrame
+        pareto_df = pd.DataFrame(non_dominated_points, columns=['LMN_open', 'LMN_closed', 'Smax'])
+
+
+        # Function to create and save a plot with a given view angle
+        def save_plot_with_angle(elev, azim, filename):
+            fig = plt.figure(figsize=(12, 8))
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(data['LMN_open'], data['LMN_closed'], data['Smax'], label='Solutions', alpha=0.5)
+
+            # Creating a surface plot for Pareto front
+            X, Y, Z = pareto_df['LMN_open'], pareto_df['LMN_closed'], pareto_df['Smax']
+            ax.plot_trisurf(X, Y, Z, color='r', alpha=0.4, linewidth=0.2)
+
+            ax.set_xlabel('LMN_open')
+            ax.set_ylabel('LMN_closed')
+            ax.set_zlabel('Smax')
+            ax.set_title('Pareto Front for FEA Results')
+            ax.legend()
+
+            # Rotate the plot to the specified angle
+            ax.view_init(elev=elev, azim=azim)
+
+            # Save the plot to the specified folder
+            plot_path = os.path.join(folder_path, filename)
+            plt.savefig(plot_path)
+            plt.close()
+
+        # Ensure the folder exists
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        # Save the plot from three different orientations
+        save_plot_with_angle(30, 90, 'pareto_front_rotated_1.png')
+        save_plot_with_angle(30, 180, 'pareto_front_rotated_2.png')
+        save_plot_with_angle(30, 270, 'pareto_front_rotated_3.png')
+
+        # Save the plot to the specified folder
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        plot_path = os.path.join(folder_path, 'pareto_front.png')
+        plt.savefig(plot_path)
+        plt.close()
+
+    problem_name = get_problem_name().lower()
+    if problem_name == 'test':
+        create_pareto_front_plot_pymoo(data=data, folder_path=folder_path, pymoo_problem=pymoo_problem)
+    else:
+        create_pareto_front_plot_fea(csv_path=csv_path, folder_path=folder_path)
 
 
 def plot_objective_minimization(
@@ -382,3 +473,5 @@ def colored(text, color):
     elif color == "red":
         return f"\033[91m{text}\033[0m"  # Red text
     return text
+
+
