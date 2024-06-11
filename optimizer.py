@@ -21,7 +21,7 @@ from utils.problem import init_procedure, Procedure
 import time
 from random import random
 from glob2 import glob
-from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id
+from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id, set_dead_objects
 import pickle
 
 
@@ -174,12 +174,12 @@ class Problem(ElementwiseProblem):
                 "LMN_closed": objective_values['LMN_closed'],
                 "Smax": objective_values['Smax']
             }
-            print(f'obj: {objectives_dict}')
+            # print(f'obj: {objectives_dict}')
             constraint_values = result['constraints']
             constraints_dict = {
                 "VMS_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
             }
-            print(f'cons: {constraints_dict}')
+            # print(f'cons: {constraints_dict}')
         elif problem_name == 'leaflet_contact':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
@@ -540,11 +540,11 @@ if __name__ == "__main__":
 
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_single'
-
-    pop_size = 100
-    offsprings = 100
+    set_dead_objects(0)
+    pop_size = 30
+    offsprings = 28
     crossover_chance = 0.8
-    mutation_chance = 0.3
+    mutation_chance = 0.5
     set_problem_name(problem_name)
     crossover_eta = 50
     mutation_eta = 50
@@ -626,10 +626,11 @@ if __name__ == "__main__":
             'CVT': (0.1, 0.8),
             'LAS': (0.2, 1.5)
         }
-        objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        constraints = [  # 'LMN_op_constr',
+        # objectives = ['LMN_open', 'LMN_closed', 'Smax']
+        objectives = ['Smax']
+        constraints = [  ]# 'LMN_op_constr',
             # 'LMN_cl_constr',
-            'VMS_constr']
+            # 'VMS_constr']
         ref_point = np.array([1, 0, get_s_lim()])
     print('Parameters:', parameters)
     print('Objectives:', objectives)

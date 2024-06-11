@@ -9,7 +9,7 @@ import trimesh
 import pathlib
 from random import random
 from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
-                              get_cpus, get_base_name, get_s_lim, get_percent)
+                              get_cpus, get_base_name, get_s_lim, get_percent, set_dead_objects, get_dead_objects)
 from pymoo.problems import get_problem
 from utils.get_history_output import get_history_output as get_history_output
 from utils.runabaqus import runabaqus_no_walltime as runabaqus
@@ -360,7 +360,7 @@ class Procedure:
 
                 # cleanup_log_leaflet()
                 # set_id(ID + 1)
-
+                set_dead_objects(get_dead_objects()+1)
                 return {"objectives": objectives_dict, "constraints": constraints_dict}
 
         def run_leaflet_contact(self, params) -> dict:
@@ -668,7 +668,7 @@ def init_procedure(param_array):
 
         return problem
 
-    def init_procedure_leaf_single(cpus=10, logging=True, baseName='test', mesh_step=0.35):
+    def init_procedure_leaf_single(cpus=10, logging=True, baseName='test', mesh_step=0.5):
         # prepare folders for xlsx, inps, logs, geoms
         folders = ['inps', 'logs', 'geoms']
         for folder in folders:
@@ -689,7 +689,7 @@ def init_procedure(param_array):
 
         # имена и путь xls файлов; базовое имя для инпутов и .odb
         outFileNameGeom = folder_path + '/geom_' + str(baseName) + '_' + str(now) + '.xlsx'
-        outFileNameResult = folder_path + '/odb_' + str(baseName) + '_' + str(now) +  '.xlsx'
+        outFileNameResult = folder_path + '/odb_' + str(baseName) + '_' + str(now) + '.xlsx'
         if not glob(os.path.join(folder_path, outFileNameGeom)):
             # подготовка таблиц
             colNamesRes = pd.DataFrame(

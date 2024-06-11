@@ -6,8 +6,9 @@ class Params:
     mesh_step = 0.35
     baseName = ''
     Slim = 0
+    dead_objects = 0
 
-    def __init__(self, percent, problem_name, id, cpus, mesh_step, baseName, Slim):
+    def __init__(self, percent, problem_name, id, cpus, mesh_step, baseName, Slim, dead_obj):
         self.percent = percent
         if (
                 problem_name.lower() == 'beam'
@@ -25,13 +26,18 @@ class Params:
         self.mesh_step = mesh_step
         self.baseName = baseName
         self.Slim = Slim
+        self.dead_objects = dead_obj
 
 
-params = Params(percent=0, problem_name='default', id=0, cpus=1, mesh_step=0.35, baseName='changeIt', Slim=0)
+params = Params(percent=0, problem_name='default', id=0, cpus=1, mesh_step=0.35, baseName='changeIt', Slim=0, dead_obj=0)
 
 
 def set_percent(val):
     params.percent = val
+
+def set_dead_objects(val):
+    params.dead_objects = val
+
 
 
 def set_problem_name(val):
@@ -84,3 +90,6 @@ def get_mesh_step() -> float:
 
 def get_s_lim() -> float:
     return params.Slim
+
+def get_dead_objects() -> int:
+    return params.dead_objects
