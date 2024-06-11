@@ -216,8 +216,8 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         newstr = ''.join((ch if ch in '0123456789' else ' ') for ch in stressFiles[1])
         two_step = ([int(i) for i in newstr.split()])[-1]
 
-        closed_step = min(one_step, two_step)
-        opened_step = max(one_step, two_step)
+        closed_step = max(one_step, two_step)
+        opened_step = min(one_step, two_step)
 
         del newstr, one_step, two_step
 

@@ -112,11 +112,6 @@ def create_pareto_front_plot(
         save_plot_with_angle(30, 180, 'pareto_front_rotated_2.png')
         save_plot_with_angle(30, 270, 'pareto_front_rotated_3.png')
 
-        # Save the plot to the specified folder
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        plot_path = os.path.join(folder_path, 'pareto_front.png')
-        plt.savefig(plot_path)
         plt.close()
 
     problem_name = get_problem_name().lower()

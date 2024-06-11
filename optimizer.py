@@ -170,17 +170,16 @@ class Problem(ElementwiseProblem):
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
             objectives_dict = {
-                'LMN_open': 1 - objective_values['LMN_open'],
+                "LMN_open": 1 - objective_values['LMN_open'],
                 "LMN_closed": objective_values['LMN_closed'],
                 "Smax": objective_values['Smax']
-                # "I":  objective_values['I']
             }
+            print(f'obj: {objectives_dict}')
             constraint_values = result['constraints']
             constraints_dict = {
-                # "LMN_op_constr": constraint_values['LMN_op_constr'],
-                # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
                 "VMS_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
             }
+            print(f'cons: {constraints_dict}')
         elif problem_name == 'leaflet_contact':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
@@ -542,13 +541,13 @@ if __name__ == "__main__":
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_single'
 
-    pop_size = 80
-    offsprings = 40
-    crossover_chance = 0.9
+    pop_size = 100
+    offsprings = 100
+    crossover_chance = 0.8
     mutation_chance = 0.3
     set_problem_name(problem_name)
-    crossover_eta = 80
-    mutation_eta = 40
+    crossover_eta = 50
+    mutation_eta = 50
     # for percent in [0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
 
     percent = 0  # synthetic % of lost results
@@ -657,7 +656,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 5,
-        "n_max_gen": 100,
+        "n_max_gen": 1000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)

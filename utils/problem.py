@@ -329,9 +329,15 @@ class Procedure:
                     "Smax": Smax
                 }
 
+                if LMN_op < 0:
+                    objectives_dict = {
+                        "LMN_open": 0,
+                        "LMN_closed": 1,
+                        "Smax": 50
+                    }
+                    VMS = 50
+
                 constraints_dict = {
-                    "LMN_op_constr": LMN_op,
-                    "LMN_cl_constr": LMN_cl,
                     "VMS_constr": VMS
                 }
 
@@ -345,12 +351,10 @@ class Procedure:
                 objectives_dict = {
                     'LMN_open': 0.0,
                     "LMN_closed": 1.0,
-                    "VMS": 50
+                    "Smax": 50
                 }
 
                 constraints_dict = {
-                    "LMN_op_constr": 0.0,
-                    "LMN_cl_constr": 1.0,
                     "VMS_constr": 50
                 }
 
