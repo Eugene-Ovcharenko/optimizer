@@ -1,5 +1,6 @@
 from datetime import datetime
 from .logger_leaflet import log_message
+from .global_variable import get_direction
 import numpy as np
 
 def write_inp_beam(fileName=None, JobName='test', ModelName='test', partName='test', Width=10, THK=3):
@@ -166,15 +167,24 @@ def write_inp_shell(fileName=None, Nodes=None, Elements=None, BCfix=None, THC=No
             fileID.write('\t%d,' % (BCfix[i] + 1))
         else:
             fileID.write('\t%d\n' % (BCfix[i] + 1))
-
-    fileID.write('\n*Elset, elset=ElSet_1_SNEG, instance=%s-1, generate\n' % (partName))
-    fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
-    fileID.write('*Surface, type=ELEMENT, name=ElSet_Aort\n')
-    fileID.write('ElSet_1_SNEG, SNEG\n')
-    fileID.write('*Elset, elset=ElSet_2_SPOS, instance=%s-1, generate\n' % (partName))
-    fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
-    fileID.write('*Surface, type=ELEMENT, name=ElSet_Vent\n')
-    fileID.write('ElSet_2_SPOS, SPOS\n')
+    if get_direction().lower() == 'direct':
+        fileID.write('\n*Elset, elset=ElSet_1_SNEG, instance=%s-1, generate\n' % (partName))
+        fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
+        fileID.write('*Surface, type=ELEMENT, name=ElSet_Aort\n')
+        fileID.write('ElSet_1_SNEG, SNEG\n')
+        fileID.write('*Elset, elset=ElSet_2_SPOS, instance=%s-1, generate\n' % (partName))
+        fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
+        fileID.write('*Surface, type=ELEMENT, name=ElSet_Vent\n')
+        fileID.write('ElSet_2_SPOS, SPOS\n')
+    else:
+        fileID.write('\n*Elset, elset=ElSet_1_SNEG, instance=%s-1, generate\n' % (partName))
+        fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
+        fileID.write('*Surface, type=ELEMENT, name=ElSet_Aort\n')
+        fileID.write('ElSet_1_SNEG, SPOS\n')
+        fileID.write('*Elset, elset=ElSet_2_SPOS, instance=%s-1, generate\n' % (partName))
+        fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
+        fileID.write('*Surface, type=ELEMENT, name=ElSet_Vent\n')
+        fileID.write('ElSet_2_SPOS, SNEG\n')
     fileID.write('*Nset, nset=OutputNodes, instance=%s-1, generate\n' % (partName))
     fileID.write('	1,	%d,	1\n' % (len(Nodes)))
     fileID.write('*Elset, elset=OutputElements, instance=%s-1, generate\n' % (partName))

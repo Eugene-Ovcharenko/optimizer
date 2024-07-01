@@ -9,7 +9,8 @@ import trimesh
 import pathlib
 from random import random
 from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
-                              get_cpus, get_base_name, get_s_lim, get_percent, set_dead_objects, get_dead_objects)
+                                   get_cpus, get_base_name, get_s_lim, get_percent,
+                                   set_dead_objects, get_dead_objects, get_direction, change_direction)
 from pymoo.problems import get_problem
 from utils.get_history_output import get_history_output as get_history_output
 from utils.runabaqus import runabaqus_no_walltime as runabaqus
@@ -166,7 +167,7 @@ class Procedure:
         def run_leaflet_single(self, params) -> dict:
             ID = get_id()
             try:
-                log_message(f"current ID is {get_id()}\n")
+                log_message(f"current ID is {get_id()}. current time is {str(datetime.datetime.now()).split('.')[0]}\n")
                 baseName = self.baseName + '_' + now + '_' + str(ID)
                 tt1 = datetime.datetime.now()
                 try:
@@ -246,96 +247,170 @@ class Procedure:
                 modelName = str(baseName) + '_Model'
                 partName = str(baseName) + '_Part'
                 outFEATime = 0
-
-                try:
-                    write_inp_shell(
-                        fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
-                        BCfix=fixed_bc, THC=THK, Emod=EM, Dens=9e-10, JobName=jobName,
-                        ModelName=modelName, partName=partName, MaterialName='PVA', PressType='vent',
-                        press_overclosure='linear', tangent_behavior=tangent_behavior,
-                        normal_behavior=normal_behavior
-                    )
-                    message = runabaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
-                    outFEATime = datetime.datetime.now() - tt1
-                except Exception as e:
-                    delta = datetime.datetime.now() - tt1
-                    # wbGeom = load_workbook(filename=self.outFileNameLog)
-                    sheet = self.wbLog['log']
-                    sheet.append(
-                        [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
-                         normal_behavior,
-                         0, str(e), delta])
-                    self.wbLog.save(self.outFileNameLog)
-                    self.wbLog.close()
-                    del delta, sheet
-                    raise e
-
-                # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
-                try:
-                    get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb', cpus=self.cpus)
-                except:
-                    delta = datetime.datetime.now() - tt1
-                    # wbGeom = load_workbook(filename=self.outFileNameLog)
-                    sheet = self.wbLog['log']
-                    with open(pathToAbaqus + '/results/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
-                        frames = int(DataFile.read())
-                    sheet.append(
-                        [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
-                         normal_behavior,
-                         frames,
-                         'Odb parse problem', delta])
-                    self.wbLog.save(self.outFileNameLog)
-                    self.wbLog.close()
-                    # purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
-                    del delta, sheet
-                    raise 'Odb parse problem'
-
-                try:
-                    endPath = pathToAbaqus + 'results/'
-                    LMN_op, LMN_cl, Smax, VMS, perf_index = read_data(
-                        pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName,
-                        HGT=HGT, Lstr=Lstr, DIA=DIA, THK=THK, ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, EM=EM, SEC=SEC,
-                        tangent_behavior=tangent_behavior, normal_behavior=normal_behavior,
-                        mesh_step=mesh_step, outFEATime=outFEATime, fileName=fileName,
-                        sheet_short=self.sheet_short, sheet_desc=self.sheet_desc, wbResults=self.wbResults,
-                        outFileNameResult=self.outFileNameResults, outFileNameGeom=self.outFileNameLog, tt1=tt1
-                    )
-                    purgeFiles(endPath, partName, pathToAbaqus, jobName)
-                except Exception as e:
-                    delta = datetime.datetime.now() - tt1
-                    sheet = self.wbLog['log']
+                if get_direction().lower() == 'direct':
                     try:
-                        with open(pathToAbaqus + '/results/' + partName[0:-5].upper() + '/FramesCount.txt',
-                                  'r') as DataFile:
-                            frames = int(DataFile.read())
+                        write_inp_shell(
+                            fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
+                            BCfix=fixed_bc, THC=THK, Emod=EM, Dens=9e-10, JobName=jobName,
+                            ModelName=modelName, partName=partName, MaterialName='PVA', PressType='vent',
+                            press_overclosure='linear', tangent_behavior=tangent_behavior,
+                            normal_behavior=normal_behavior
+                        )
+                        message = runabaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
+                        outFEATime = datetime.datetime.now() - tt1
+                    except Exception as e:
+                        delta = datetime.datetime.now() - tt1
+                        # wbGeom = load_workbook(filename=self.outFileNameLog)
+                        sheet = self.wbLog['log']
+                        sheet.append(
+                            [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                             normal_behavior,
+                             0, str(e), delta])
+                        self.wbLog.save(self.outFileNameLog)
+                        self.wbLog.close()
+                        del delta, sheet
+                        raise e
+
+                    # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
+                    try:
+                        get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb', cpus=self.cpus)
                     except:
-                        frames = 0
-                    sheet.append(
-                        [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
-                         normal_behavior,
-                         frames,
-                         str(e), delta])
-                    self.wbLog.save(self.outFileNameLog)
-                    self.wbLog.close()
-                    purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
-                    del delta, sheet
-                    raise e
+                        delta = datetime.datetime.now() - tt1
+                        # wbGeom = load_workbook(filename=self.outFileNameLog)
+                        sheet = self.wbLog['log']
+                        with open(pathToAbaqus + '/results/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
+                            frames = int(DataFile.read())
+                        sheet.append(
+                            [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                             normal_behavior,
+                             frames,
+                             'Odb parse problem', delta])
+                        self.wbLog.save(self.outFileNameLog)
+                        self.wbLog.close()
+                        # purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
+                        del delta, sheet
+                        raise 'Odb parse problem'
+
+                    try:
+                        endPath = pathToAbaqus + 'results/'
+                        LMN_op, LMN_cl, Smax, VMS, perf_index = read_data(
+                            pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName,
+                            HGT=HGT, Lstr=Lstr, DIA=DIA, THK=THK, ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, EM=EM, SEC=SEC,
+                            tangent_behavior=tangent_behavior, normal_behavior=normal_behavior,
+                            mesh_step=mesh_step, outFEATime=outFEATime, fileName=fileName,
+                            sheet_short=self.sheet_short, sheet_desc=self.sheet_desc, wbResults=self.wbResults,
+                            outFileNameResult=self.outFileNameResults, outFileNameGeom=self.outFileNameLog, tt1=tt1
+                        )
+                        purgeFiles(endPath, partName, pathToAbaqus, jobName)
+                    except Exception as e:
+                        delta = datetime.datetime.now() - tt1
+                        sheet = self.wbLog['log']
+                        try:
+                            with open(pathToAbaqus + '/results/' + partName[0:-5].upper() + '/FramesCount.txt',
+                                      'r') as DataFile:
+                                frames = int(DataFile.read())
+                        except:
+                            frames = 0
+                        sheet.append(
+                            [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                             normal_behavior,
+                             frames,
+                             str(e), delta])
+                        self.wbLog.save(self.outFileNameLog)
+                        self.wbLog.close()
+                        purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
+                        del delta, sheet
+                        raise e
+
+                    if LMN_op < 0:
+                        change_direction()
+                        log_message(f'Changed direction to {get_direction()}! LMN_op is {LMN_op}\m')
+                        try:
+                            write_inp_shell(
+                                fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
+                                BCfix=fixed_bc, THC=THK, Emod=EM, Dens=9e-10, JobName=jobName,
+                                ModelName=modelName, partName=partName, MaterialName='PVA', PressType='vent',
+                                press_overclosure='linear', tangent_behavior=tangent_behavior,
+                                normal_behavior=normal_behavior
+                            )
+                            message = runabaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
+                            outFEATime = datetime.datetime.now() - tt1
+                        except Exception as e:
+                            delta = datetime.datetime.now() - tt1
+                            # wbGeom = load_workbook(filename=self.outFileNameLog)
+                            sheet = self.wbLog['log']
+                            sheet.append(
+                                [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                                 normal_behavior,
+                                 0, str(e), delta])
+                            self.wbLog.save(self.outFileNameLog)
+                            self.wbLog.close()
+                            del delta, sheet
+                            raise e
+
+                        # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
+                        try:
+                            get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb', cpus=self.cpus)
+                        except:
+                            delta = datetime.datetime.now() - tt1
+                            # wbGeom = load_workbook(filename=self.outFileNameLog)
+                            sheet = self.wbLog['log']
+                            with open(pathToAbaqus + '/results/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
+                                frames = int(DataFile.read())
+                            sheet.append(
+                                [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                                 normal_behavior,
+                                 frames,
+                                 'Odb parse problem', delta])
+                            self.wbLog.save(self.outFileNameLog)
+                            self.wbLog.close()
+                            # purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
+                            del delta, sheet
+                            raise 'Odb parse problem'
+
+                        try:
+                            endPath = pathToAbaqus + 'results/'
+                            LMN_op, LMN_cl, Smax, VMS, perf_index = read_data(
+                                pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName,
+                                HGT=HGT, Lstr=Lstr, DIA=DIA, THK=THK, ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, EM=EM, SEC=SEC,
+                                tangent_behavior=tangent_behavior, normal_behavior=normal_behavior,
+                                mesh_step=mesh_step, outFEATime=outFEATime, fileName=fileName,
+                                sheet_short=self.sheet_short, sheet_desc=self.sheet_desc, wbResults=self.wbResults,
+                                outFileNameResult=self.outFileNameResults, outFileNameGeom=self.outFileNameLog, tt1=tt1
+                            )
+                            purgeFiles(endPath, partName, pathToAbaqus, jobName)
+                        except Exception as e:
+                            delta = datetime.datetime.now() - tt1
+                            sheet = self.wbLog['log']
+                            try:
+                                with open(pathToAbaqus + '/results/' + partName[0:-5].upper() + '/FramesCount.txt',
+                                          'r') as DataFile:
+                                    frames = int(DataFile.read())
+                            except:
+                                frames = 0
+                            sheet.append(
+                                [fileName, ID, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                                 normal_behavior,
+                                 frames,
+                                 str(e), delta])
+                            self.wbLog.save(self.outFileNameLog)
+                            self.wbLog.close()
+                            purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
+                            del delta, sheet
+                            raise e
+
+                        change_direction()
+                        log_message(f'Swap back direction to {get_direction()}! LMN_op is {LMN_op}')
+
                 del fixed_bc, partName, jobName, endPath, modelName, inpFileName
                 del tt1, tt2
+
 
                 objectives_dict = {
                     'LMN_open': LMN_op,
                     "LMN_closed": LMN_cl,
                     "Smax": Smax
                 }
-
-                if LMN_op < 0:
-                    objectives_dict = {
-                        "LMN_open": 0,
-                        "LMN_closed": 1,
-                        "Smax": 50
-                    }
-                    VMS = 50
 
                 constraints_dict = {
                     "VMS_constr": VMS
@@ -349,8 +424,8 @@ class Procedure:
                 log_message(f'Exception: {exept}')
 
                 objectives_dict = {
-                    'LMN_open': 0.0,
-                    "LMN_closed": 1.0,
+                    'LMN_open': -1.0,
+                    "LMN_closed": 2.0,
                     "Smax": 50
                 }
 
@@ -360,7 +435,7 @@ class Procedure:
 
                 # cleanup_log_leaflet()
                 # set_id(ID + 1)
-                set_dead_objects(get_dead_objects()+1)
+                set_dead_objects(get_dead_objects() + 1)
                 return {"objectives": objectives_dict, "constraints": constraints_dict}
 
         def run_leaflet_contact(self, params) -> dict:
@@ -601,7 +676,6 @@ class Procedure:
 inpDir = str(pathlib.Path(__file__).parent.resolve()) + '/inps/'
 
 
-
 def init_procedure(param_array):
     def init_procedure_beam(cpus=10, logging=True, baseName='test'):
         set_id(0)
@@ -699,7 +773,8 @@ def init_procedure(param_array):
                  'Tangent behavior': [], 'Normal Behavior': [],
                  'Contact Area, mm^2': [], 'ORFC, mm^2$': [], 'S_geom, mm^2': [], 'REGURG_AREA, mm^2': [], 'HELI': [],
                  'VMS, MPa': [], 'S11, MPa': [], 'S22, MPa': [], 'S33, MPa': [], 'Smid, MPa': [], 'Smin, MPa': [],
-                 'LE11, m/m': [], 'LE22, m/m': [], 'LE33, m/m': [], 'LEmax, m/m': [], 'LEmid, m/m': [], 'LEmin, m/m': [],
+                 'LE11, m/m': [], 'LE22, m/m': [], 'LE33, m/m': [], 'LEmax, m/m': [], 'LEmid, m/m': [],
+                 'LEmin, m/m': [],
                  'VMS_1, MPa': [], 'VMS_2, MPa': [], 'VMS_3, MPa': [],
                  'S11_1, MPa': [], 'S11_2, MPa': [], 'S11_3, MPa': [],
                  'S22_1, MPa': [], 'S22_2, MPa': [], 'S22_3, MPa': [],

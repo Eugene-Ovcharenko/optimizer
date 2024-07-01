@@ -19,6 +19,7 @@ def create_pareto_front_plot(
         csv_path: str,
         data: pd.DataFrame,
         folder_path: str,
+        objectives: list,
         pymoo_problem: str = "welded_beam"
 ) -> None:
 
@@ -45,6 +46,7 @@ def create_pareto_front_plot(
 
     def create_pareto_front_plot_fea(
             csv_path: str,
+            objectivies: list,
             folder_path: str,
     ) -> None:
         """
@@ -63,7 +65,20 @@ def create_pareto_front_plot(
         data = pd.read_csv(csv_path)
 
         # Extract objective values as a list of tuples
-        points = list(zip(data['LMN_open'], data['LMN_closed'], data['Smax']))
+        # try:
+        #     points = list(zip(data['LMN_open'], data['LMN_closed'], data['Smax']))
+        # except:
+        #     try:
+        #         points = list(zip(data['LMN_open']))
+        #     except:
+        #         try:
+        #             points = list(zip(data['LMN_closed']))
+        #         except:
+        #             try:
+        #                 points = list(zip(data['Smax']))
+        #             except:
+        #                 raise('cannot load objcetives')
+        points = objectivies
 
         def is_dominated(point, others):
             return any(
@@ -76,7 +91,7 @@ def create_pareto_front_plot(
         non_dominated_points = [point for point in points if not is_dominated(point, points)]
 
         # Convert non-dominated points to a DataFrame
-        pareto_df = pd.DataFrame(non_dominated_points, columns=['LMN_open', 'LMN_closed', 'Smax'])
+        pareto_df = pd.DataFrame(non_dominated_points, columns=objectivies)
 
 
         # Function to create and save a plot with a given view angle
@@ -108,17 +123,16 @@ def create_pareto_front_plot(
             os.makedirs(folder_path)
 
         # Save the plot from three different orientations
-        save_plot_with_angle(30, 90, 'pareto_front_rotated_1.png')
-        save_plot_with_angle(30, 180, 'pareto_front_rotated_2.png')
-        save_plot_with_angle(30, 270, 'pareto_front_rotated_3.png')
-
-        plt.close()
+        if len(objectivies) == 3:
+            save_plot_with_angle(30, 90, 'pareto_front_rotated_1.png')
+            save_plot_with_angle(30, 180, 'pareto_front_rotated_2.png')
+            save_plot_with_angle(30, 270, 'pareto_front_rotated_3.png')
 
     problem_name = get_problem_name().lower()
     if problem_name == 'test':
         create_pareto_front_plot_pymoo(data=data, folder_path=folder_path, pymoo_problem=pymoo_problem)
     else:
-        create_pareto_front_plot_fea(csv_path=csv_path, folder_path=folder_path)
+        create_pareto_front_plot_fea(csv_path=csv_path, objectivies=objectives, folder_path=folder_path)
 
 
 def plot_objective_minimization(

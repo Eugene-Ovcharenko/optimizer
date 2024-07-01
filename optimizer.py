@@ -1,3 +1,4 @@
+import gc
 import os
 import sys
 import datetime
@@ -21,7 +22,8 @@ from utils.problem import init_procedure, Procedure
 import time
 from random import random
 from glob2 import glob
-from utils.global_variable import set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id, set_dead_objects
+from utils.global_variable import (set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id,
+                                   set_dead_objects, set_mesh_step)
 import pickle
 
 
@@ -193,7 +195,7 @@ class Problem(ElementwiseProblem):
             constraints_dict = {
                 # "LMN_op_constr": constraint_values['LMN_op_constr'],
                 # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-                "VMS_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
+                "VMS_constr": constraint_values['VMS_constr'] - get_s_lim()
             }
         elif problem_name == 'test':
             curr_rand = random() * 100
@@ -287,15 +289,26 @@ def extract_optimization_results(
             history_data.append(record)
     history_df = pd.DataFrame(history_data)
     history_df.to_excel(os.path.join(output_path, 'history.xlsx'))
-
-    X = pd.DataFrame(res.X, columns=problem.param_names)
+    try:
+        X = pd.DataFrame(res.X, columns=problem.param_names)
+    except:
+        col = problem.param_names
+        x_data = res.X
+        res_x = dict()
+        for valc, val in zip(col, x_data):
+            res_x.update({valc: val})
+        X = pd.DataFrame([res_x])
 
     F = pd.DataFrame(res.F, columns=problem.obj_names)
 
-    G = pd.DataFrame() if not hasattr(res, 'G') or res.G is None else pd.DataFrame(res.G, columns=problem.constr_names)
+    try:
+        G = pd.DataFrame() if not hasattr(res, 'G') or res.G is None else pd.DataFrame(res.G,
+                                                                                       columns=problem.constr_names)
+    except:
+        if problem.constr_names == []:
+            G = pd.DataFrame(res.G, columns=['no constr'])
 
     CV = pd.DataFrame() if not hasattr(res, 'CV') or res.CV is None else pd.DataFrame(res.CV, columns=['CV'])
-
     # opt_df = None
     # if res.opt is not None:
     #     opt_data = [{'X': dict(zip(problem.param_names, ind.X)),
@@ -535,20 +548,20 @@ def save_object(obj, filepath, filename):
 
 
 if __name__ == "__main__":
+    gc.enable()  # enable garbage collector to avoid memory leak
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
-
+    set_mesh_step(0.6)
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_single'
     set_dead_objects(0)
-    pop_size = 30
-    offsprings = 28
+    pop_size = 15
+    offsprings = 15
     crossover_chance = 0.8
     mutation_chance = 0.5
     set_problem_name(problem_name)
     crossover_eta = 50
     mutation_eta = 50
-    # for percent in [0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
 
     percent = 0  # synthetic % of lost results
 
@@ -572,10 +585,6 @@ if __name__ == "__main__":
     else:
         typeof = problem_name
 
-    # for crossover in [0.9, 0.7, 0.5]:
-    #     for mutation in [0.5, 0.3, 0.1]:
-    #         for crossover_eta in range(20, 90, 20):
-    #             for mutation_eta in range(20, 90, 20):
     set_percent(percent)
     for file in glob('./*.rpy*'):
         os.remove(file)
@@ -627,10 +636,10 @@ if __name__ == "__main__":
             'LAS': (0.2, 1.5)
         }
         # objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        objectives = ['Smax']
-        constraints = [  ]# 'LMN_op_constr',
-            # 'LMN_cl_constr',
-            # 'VMS_constr']
+        objectives = ['LMN_open', 'Smax']
+        constraints = []  # 'LMN_op_constr',
+        # 'LMN_cl_constr',
+        # 'VMS_constr']
         ref_point = np.array([1, 0, get_s_lim()])
     print('Parameters:', parameters)
     print('Objectives:', objectives)
@@ -657,7 +666,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 5,
-        "n_max_gen": 1000,
+        "n_max_gen": 10000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -672,7 +681,7 @@ if __name__ == "__main__":
                    verbose=True)
     elapsed_time = time.time() - start_time
 
-    save_object(res, folder_path, 'results_object.pkl')
+    # save_object(res, folder_path, 'results_object.pkl')
 
     try:
         # result storage
@@ -784,6 +793,7 @@ if __name__ == "__main__":
         create_pareto_front_plot(
             csv_path=os.path.join(folder_path, 'history.csv'),
             data=optimization_results['F'],
+            objectives=problem.obj_names,
             folder_path=folder_path,
             pymoo_problem="welded_beam"
         )

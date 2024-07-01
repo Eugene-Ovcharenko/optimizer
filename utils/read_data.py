@@ -318,75 +318,82 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         ), 4)
     else:
         perf_index = 0
+    if LMN_op > 0:
+        if len(subfolders)> 1:
+            new_row_short = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
+                             np.round(LMN_cl, 3), np.round(Smax, 4), perf_index]
+            new_row_desc = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
+                            perf_index,
+                            tangent_behavior, normal_behavior, carea, opened_area, maxORFC, (maxORFC - closed_area),
+                            isHelicopter,
+                            VMS, S11, S22, S33, Smid, Smin, LE11, LE22, LE33, LEmax, LEmid, LEmin,
+                            max(s_max1_1step[-1], s_max1_2step[-1]), max(s_max2_1step[-1], s_max2_2step[-1]),
+                            max(s_max3_1step[-1], s_max3_2step[-1]),  # VMS
+                            max(s_max1_1step[0], s_max1_2step[0]), max(s_max2_1step[0], s_max2_2step[0]),
+                            max(s_max3_1step[0], s_max3_2step[0]),  # S11
+                            max(s_max1_1step[1], s_max1_2step[1]), max(s_max2_1step[1], s_max2_2step[1]),
+                            max(s_max3_1step[1], s_max3_2step[1]),  # S22
+                            max(s_max1_1step[2], s_max1_2step[2]), max(s_max2_1step[2], s_max2_2step[2]),
+                            max(s_max3_1step[2], s_max3_2step[2]),  # S33
+                            max(s_max1_1step[3], s_max1_2step[3]), max(s_max2_1step[3], s_max2_2step[3]),
+                            max(s_max3_1step[3], s_max3_2step[3]),  # Smax
+                            max(s_max1_1step[4], s_max1_2step[4]), max(s_max2_1step[4], s_max2_2step[4]),
+                            max(s_max3_1step[4], s_max3_2step[4]),  # Smid
+                            max(s_max1_1step[5], s_max1_2step[5]), max(s_max2_1step[5], s_max2_2step[5]),
+                            max(s_max3_1step[5], s_max3_2step[5]),  # Smin
+                            max(le_max1_1step[0], le_max1_2step[0]), max(le_max2_1step[0], le_max2_2step[0]),
+                            max(le_max3_1step[0], le_max3_2step[0]),  # LE11
+                            max(le_max1_1step[1], le_max1_2step[1]), max(le_max2_1step[1], le_max2_2step[1]),
+                            max(le_max3_1step[1], le_max3_2step[1]),  # LE22
+                            max(le_max1_1step[2], le_max1_2step[2]), max(le_max2_1step[2], le_max2_2step[2]),
+                            max(le_max3_1step[2], le_max3_2step[2]),  # LE33
+                            max(le_max1_1step[3], le_max1_2step[3]), max(le_max2_1step[3], le_max2_2step[3]),
+                            max(le_max3_1step[3], le_max3_2step[3]),  # LEmax
+                            max(le_max1_1step[4], le_max1_2step[4]), max(le_max2_1step[4], le_max2_2step[4]),
+                            max(le_max3_1step[4], le_max3_2step[4]),  # LEmid
+                            max(le_max1_1step[5], le_max1_2step[5]), max(le_max2_1step[5], le_max2_2step[5]),
+                            max(le_max3_1step[5], le_max3_2step[5]),  # LEmin
+                            eleCount, 3 * eleCount, outFEATime, frames, tdiff1]
+        else:
+            new_row_short = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
+                             np.round(LMN_cl, 3), np.round(Smax, 4), perf_index]
+            new_row_desc = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
+                            perf_index, tangent_behavior, normal_behavior, -1, opened_area, maxORFC,
+                            (maxORFC - closed_area), -1,
+                            VMS, S11, S22, S33, Smid, Smin, LE11, LE22, LE33, LEmax, LEmid, LEmin,
+                            max(s_max1_1step[-1], s_max1_2step[-1]), -1, -1,  # VMS
+                            max(s_max1_1step[0], s_max1_2step[0]), -1, -1,  # S11
+                            max(s_max1_1step[1], s_max1_2step[1]), -1, -1,  # S22
+                            max(s_max1_1step[2], s_max1_2step[2]), -1, -1,  # S33
+                            max(s_max1_1step[3], s_max1_2step[3]), -1, - 1,  # Smax
+                            max(s_max1_1step[4], s_max1_2step[4]), -1, -1,  # Smid
+                            max(s_max1_1step[5], s_max1_2step[5]), -1, -1,  # Smin
+                            max(le_max1_1step[0], le_max1_2step[0]), -1, -1,  # LE11
+                            max(le_max1_1step[1], le_max1_2step[1]), -1, -1,  # LE22
+                            max(le_max1_1step[2], le_max1_2step[2]), -1, -1,  # LE33
+                            max(le_max1_1step[3], le_max1_2step[3]), -1, -1,  # LEmax
+                            max(le_max1_1step[4], le_max1_2step[4]), -1, -1,  # LEmid
+                            max(le_max1_1step[5], le_max1_2step[5]), -1, -1,  # LEmin
+                            eleCount, 3 * eleCount, outFEATime, frames, tdiff1]
 
-    if len(subfolders)> 1:
-        new_row_short = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
-                         np.round(LMN_cl, 3), np.round(Smax, 4), perf_index]
-        new_row_desc = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
-                        perf_index,
-                        tangent_behavior, normal_behavior, carea, opened_area, maxORFC, (maxORFC - closed_area),
-                        isHelicopter,
-                        VMS, S11, S22, S33, Smid, Smin, LE11, LE22, LE33, LEmax, LEmid, LEmin,
-                        max(s_max1_1step[-1], s_max1_2step[-1]), max(s_max2_1step[-1], s_max2_2step[-1]),
-                        max(s_max3_1step[-1], s_max3_2step[-1]),  # VMS
-                        max(s_max1_1step[0], s_max1_2step[0]), max(s_max2_1step[0], s_max2_2step[0]),
-                        max(s_max3_1step[0], s_max3_2step[0]),  # S11
-                        max(s_max1_1step[1], s_max1_2step[1]), max(s_max2_1step[1], s_max2_2step[1]),
-                        max(s_max3_1step[1], s_max3_2step[1]),  # S22
-                        max(s_max1_1step[2], s_max1_2step[2]), max(s_max2_1step[2], s_max2_2step[2]),
-                        max(s_max3_1step[2], s_max3_2step[2]),  # S33
-                        max(s_max1_1step[3], s_max1_2step[3]), max(s_max2_1step[3], s_max2_2step[3]),
-                        max(s_max3_1step[3], s_max3_2step[3]),  # Smax
-                        max(s_max1_1step[4], s_max1_2step[4]), max(s_max2_1step[4], s_max2_2step[4]),
-                        max(s_max3_1step[4], s_max3_2step[4]),  # Smid
-                        max(s_max1_1step[5], s_max1_2step[5]), max(s_max2_1step[5], s_max2_2step[5]),
-                        max(s_max3_1step[5], s_max3_2step[5]),  # Smin
-                        max(le_max1_1step[0], le_max1_2step[0]), max(le_max2_1step[0], le_max2_2step[0]),
-                        max(le_max3_1step[0], le_max3_2step[0]),  # LE11
-                        max(le_max1_1step[1], le_max1_2step[1]), max(le_max2_1step[1], le_max2_2step[1]),
-                        max(le_max3_1step[1], le_max3_2step[1]),  # LE22
-                        max(le_max1_1step[2], le_max1_2step[2]), max(le_max2_1step[2], le_max2_2step[2]),
-                        max(le_max3_1step[2], le_max3_2step[2]),  # LE33
-                        max(le_max1_1step[3], le_max1_2step[3]), max(le_max2_1step[3], le_max2_2step[3]),
-                        max(le_max3_1step[3], le_max3_2step[3]),  # LEmax
-                        max(le_max1_1step[4], le_max1_2step[4]), max(le_max2_1step[4], le_max2_2step[4]),
-                        max(le_max3_1step[4], le_max3_2step[4]),  # LEmid
-                        max(le_max1_1step[5], le_max1_2step[5]), max(le_max2_1step[5], le_max2_2step[5]),
-                        max(le_max3_1step[5], le_max3_2step[5]),  # LEmin
-                        eleCount, 3 * eleCount, outFEATime, frames, tdiff1]
+        sheet_short.append(new_row_short)
+        sheet_desc.append(new_row_desc)
+        wbResults.save(outFileNameResult)
+        wbResults.close()
+
+        wbGeom = load_workbook(filename=outFileNameGeom)
+        sheet = wbGeom['log']
+        sheet.append([fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
+                      tangent_behavior, normal_behavior, frames, str('Done'), tdiff1])
+        wbGeom.save(outFileNameGeom)
+        wbGeom.close()
     else:
-        new_row_short = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
-                         np.round(LMN_cl, 3), np.round(Smax, 4), perf_index]
-        new_row_desc = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
-                        perf_index, tangent_behavior, normal_behavior, -1, opened_area, maxORFC,
-                        (maxORFC - closed_area), -1,
-                        VMS, S11, S22, S33, Smid, Smin, LE11, LE22, LE33, LEmax, LEmid, LEmin,
-                        max(s_max1_1step[-1], s_max1_2step[-1]), -1, -1,  # VMS
-                        max(s_max1_1step[0], s_max1_2step[0]), -1, -1,  # S11
-                        max(s_max1_1step[1], s_max1_2step[1]), -1, -1,  # S22
-                        max(s_max1_1step[2], s_max1_2step[2]), -1, -1,  # S33
-                        max(s_max1_1step[3], s_max1_2step[3]), -1, - 1,  # Smax
-                        max(s_max1_1step[4], s_max1_2step[4]), -1, -1,  # Smid
-                        max(s_max1_1step[5], s_max1_2step[5]), -1, -1,  # Smin
-                        max(le_max1_1step[0], le_max1_2step[0]), -1, -1,  # LE11
-                        max(le_max1_1step[1], le_max1_2step[1]), -1, -1,  # LE22
-                        max(le_max1_1step[2], le_max1_2step[2]), -1, -1,  # LE33
-                        max(le_max1_1step[3], le_max1_2step[3]), -1, -1,  # LEmax
-                        max(le_max1_1step[4], le_max1_2step[4]), -1, -1,  # LEmid
-                        max(le_max1_1step[5], le_max1_2step[5]), -1, -1,  # LEmin
-                        eleCount, 3 * eleCount, outFEATime, frames, tdiff1]
-
-    sheet_short.append(new_row_short)
-    sheet_desc.append(new_row_desc)
-    wbResults.save(outFileNameResult)
-    wbResults.close()
-
-    wbGeom = load_workbook(filename=outFileNameGeom)
-    sheet = wbGeom['log']
-    sheet.append([fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
-                  tangent_behavior, normal_behavior, frames, str('Done'), tdiff1])
-    wbGeom.save(outFileNameGeom)
-    wbGeom.close()
+        wbGeom = load_workbook(filename=outFileNameGeom)
+        sheet = wbGeom['log']
+        sheet.append([fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
+                      tangent_behavior, normal_behavior, frames, str('LMN_op < 0, rerun'), tdiff1])
+        wbGeom.save(outFileNameGeom)
+        wbGeom.close()
 
     return LMN_op, LMN_cl, Smax, VMS, perf_index
 
