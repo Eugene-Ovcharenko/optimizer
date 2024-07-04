@@ -10,7 +10,7 @@ def purgeFiles(endPath: str, partName: str, pathToAbaqus: str, jobName: str):
         os.system(pathToAbaqus + jobName + ".sim* ")
     else:
         rm_com = 'rm -r '
-        # os.system(rm_com + endPath + partName[0:-5].upper())
+        os.system(rm_com + endPath + partName[0:-5].upper())
         if os.path.exists(pathToAbaqus + jobName + ".simdir"):
             os.system(rm_com + pathToAbaqus + jobName + ".simdir")
 

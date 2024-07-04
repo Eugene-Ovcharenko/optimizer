@@ -6,3 +6,5 @@
 /utils/logs/abaqusWF/results/
 /utils/logs/abaqusWF/req.txt
 req.txt
+test_visul.py
+test.py

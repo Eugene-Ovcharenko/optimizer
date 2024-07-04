@@ -10,9 +10,10 @@ from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
 from pymoo.decomposition.asf import ASF
 from .global_variable import get_problem_name
+import matplotlib.colors as mcolors
+import matplotlib as mpl
 
 problem = get_problem("welded_beam")
-
 
 
 def create_pareto_front_plot(
@@ -22,7 +23,6 @@ def create_pareto_front_plot(
         objectives: list,
         pymoo_problem: str = "welded_beam"
 ) -> None:
-
     def create_pareto_front_plot_pymoo(
             data: pd.DataFrame,
             folder_path: str,
@@ -40,7 +40,8 @@ def create_pareto_front_plot(
             None: The function saves the plot to the specified folder and does not return any value.
         """
         pymoo_scatter_plot = Scatter(title="Pareto front for welded beam problem")
-        pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line", color="black")
+        pymoo_scatter_plot.add(get_problem(pymoo_problem).pareto_front(use_cache=False), plot_type="line",
+                               color="black")
         pymoo_scatter_plot.add(data.values, facecolor="none", edgecolor="red", alpha=0.8, s=20)
         pymoo_scatter_plot.save(os.path.join(folder_path, 'pareto_front.png'))
 
@@ -92,7 +93,6 @@ def create_pareto_front_plot(
 
         # Convert non-dominated points to a DataFrame
         pareto_df = pd.DataFrame(non_dominated_points, columns=objectivies)
-
 
         # Function to create and save a plot with a given view angle
         def save_plot_with_angle(elev, azim, filename):
@@ -240,10 +240,14 @@ def plot_objective_convergence(
     if num_objectives == 1:
         axes = [axes]
     for idx, obj_col in enumerate(objective_columns):
+        if obj_col.lower() == 'lmn_open':
+            obj_col_print = '1 - LMN_open'
+        else:
+            obj_col_print = obj_col
         min_per_generation = history_df.groupby('generation')[obj_col].min()
         sns.lineplot(x=unique_generations, y=min_per_generation, ax=axes[idx],
-                     marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col}")
-        axes[idx].set_title(f"Convergence of {obj_col}")
+                     marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col_print}")
+        axes[idx].set_title(f"Convergence of {obj_col_print}")
         axes[idx].set_xlabel("Generation")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_convergence.png'))
@@ -380,9 +384,9 @@ def plot_parallel_coordinates(
 
 
 def plot_best_objectives(
-    F: pd.DataFrame,
-    folder_path: str,
-    weights: list[float] or str = 'equal'
+        F: pd.DataFrame,
+        folder_path: str,
+        weights: list[float] or str = 'equal'
 ) -> None:
     """
     Finds the best trade-off in a multi-objective optimization based on ASF and creates subplots
@@ -484,3 +488,160 @@ def colored(text, color):
     return text
 
 
+def plot_parameters_over_generation(
+        data: pd.DataFrame,
+        parameters: list[str],
+        objectives: list[str],
+        folder_path: str
+):
+    def plot_parameter_with_hue(axis, parameter, colors, title):
+        figure = axis.scatter(data['generation'], data[parameter], c=colors, alpha=0.5, marker='.', edgecolors=None)
+        axis.set_title(title)
+        axis.set_xlabel('Generation')
+        axis.set_ylabel(parameter)
+
+        return figure
+
+    # Create the colormap with red for lower values and blue for higher values
+    cmap_red_blue = plt.cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=1), cmap='coolwarm')
+
+    # Normalize the objectives to create a color map
+    # Convert normalized values to colors using the red to blue colormap
+
+    n_param = len(parameters)
+    n_objectives = len(objectives)
+
+    # plt.figure(figsize=(60, 10))
+    f, ax = plt.subplots(n_objectives, n_param, figsize=(10 * n_param, 10))
+    plt.set_cmap('coolwarm')
+    for iter_obj in range(n_objectives):
+        norm_obj = mcolors.Normalize(vmin=data[objectives[iter_obj]].min(), vmax=data[objectives[iter_obj]].max())
+        colors_obj = cmap_red_blue.to_rgba(norm_obj(data[objectives[iter_obj]]))
+        for iter_param in range(n_param):
+            # Plot parameters over generations with hue based on 1 - LMN_open
+            print(f'{parameters[iter_param]} over Generations (Hue: {objectives[iter_obj]})')
+            fig = plot_parameter_with_hue(
+                ax[iter_obj, iter_param],
+                parameters[iter_param],
+                colors_obj,
+                f'{parameters[iter_param]} over Generations (Hue: {objectives[iter_obj]})'
+            )
+        cbar = f.colorbar(fig, ax=ax[iter_obj, -1], location='right', cmap=cmap_red_blue)
+        cbar.set_ticks([fig.colorbar.vmin + t * (fig.colorbar.vmax - fig.colorbar.vmin) for t in cbar.ax.get_yticks()])
+        cbar.set_ticklabels(
+            np.round(
+                np.linspace(
+                    np.min(data[objectives[iter_obj]]),
+                    np.max(data[objectives[iter_obj]]),
+                    6,
+                    endpoint=True),
+                3
+            )
+        )
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'parameters over generations.png'))
+
+    # # Plot parameters over generations with hue based on Smax
+    # plt.figure(figsize=(14, 10))
+    #
+    # plt.subplot(2, 2, 1)
+    # plot_parameter_with_hue(plt.gca(), 'Lstr', colors_smax, 'Lstr over Generations (Hue: Smax)')
+    #
+    # plt.subplot(2, 2, 2)
+    # plot_parameter_with_hue(plt.gca(), 'ANG', colors_smax, 'ANG over Generations (Hue: Smax)')
+    #
+    # plt.subplot(2, 2, 3)
+    # plot_parameter_with_hue(plt.gca(), 'CVT', colors_smax, 'CVT over Generations (Hue: Smax)')
+    #
+    # plt.subplot(2, 2, 4)
+    # plot_parameter_with_hue(plt.gca(), 'LAS', colors_smax, 'LAS over Generations (Hue: Smax)')
+    #
+    # plt.tight_layout()
+    # plt.show()
+
+
+from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
+from scipy.interpolate import interp1d
+from scipy.interpolate import make_interp_spline
+def plot_pareto_with_trade_off(
+        history: pd.DataFrame,
+        F: pd.DataFrame,
+        objectives: list[str],
+        folder_path: str,
+        weights: list[float] or str = 'equal'
+) -> None:
+    """
+    Finds the best trade-off in a multi-objective optimization based on ASF and creates subplots
+    for each unique pair of objectives to visualize the best solutions.
+
+    Args:
+        F (pd.DataFrame): DataFrame containing the objective values.
+        weights (list[float] or str): A list of weights to assign to each objective, or 'equal' for equal weights. Defaults to 'equal'.
+        folder_path (str): The directory path to save the plots.
+
+    Returns:
+        None: The function plots and saves scatter plots with highlighted best solutions.
+    """
+
+    num_objectives = F.shape[1]
+    history
+    if weights == 'equal':  # Determine weights based on the input
+        weights = [1 / num_objectives] * num_objectives
+    elif isinstance(weights, list) and len(weights) == num_objectives:
+        if not np.isclose(sum(weights), 1):
+            raise ValueError("List of weights must sum to 1.")
+    else:
+        raise ValueError("Weights must be either 'equal' or a list of correct length.")
+
+    # Normalize the objective values for ASF
+    approx_ideal = F.min(axis=0)
+    approx_nadir = F.max(axis=0)
+    nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
+    decomp = ASF()
+    best_index = decomp.do(nF.to_numpy(), 1 / np.array(weights)).argmin()
+
+    # Identify the Pareto front
+    pareto_indices = NonDominatedSorting().do(F.to_numpy(), only_non_dominated_front=True)
+    pareto_front = F.iloc[pareto_indices]
+
+    subplot_count = (num_objectives * (num_objectives - 1)) // 2  # Unique pairs of objectives
+    fig, axes = plt.subplots(1, subplot_count, figsize=(10 * subplot_count, 10))
+    plot_idx = 0
+
+    for i in range(num_objectives):
+        for j in range(i + 1, num_objectives):  # Only create unique pairs
+            ax = axes[plot_idx] if subplot_count > 1 else axes
+            sns.scatterplot(
+                data=history[objectives],
+                x=F.columns[i],
+                y=F.columns[j],
+                label="All points",
+                s=20,
+                ax=ax,
+                color='blue',
+                alpha=0.6
+            )
+            sns.scatterplot(
+                data=F.iloc[[best_index]],
+                x=F.columns[i],
+                y=F.columns[j],
+                label="Best point",
+                s=200,
+                marker="x",
+                color="red",
+                ax=ax
+            )
+
+            # Sort the Pareto front points for continuous line plotting
+            pareto_sorted = pareto_front.sort_values(by=[F.columns[i], F.columns[j]])
+            ax.plot(pareto_sorted[F.columns[i]], pareto_sorted[F.columns[j]], label="Pareto front", color="green")
+
+            ax.set_title(f"Objective {F.columns[i]} vs Objective {F.columns[j]}")
+            ax.set_xlabel(F.columns[i])
+            ax.set_ylabel(F.columns[j])
+            plot_idx += 1
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, 'pareto_front.png'))
+    plt.close()

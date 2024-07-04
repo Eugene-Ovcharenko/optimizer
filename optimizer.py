@@ -172,7 +172,8 @@ class Problem(ElementwiseProblem):
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
             objectives_dict = {
-                "LMN_open": 1 - objective_values['LMN_open'],
+                "1 - LMN_open": objective_values['1 - LMN_open'],
+                "LMN_open": objective_values['LMN_open'],
                 "LMN_closed": objective_values['LMN_closed'],
                 "Smax": objective_values['Smax']
             }
@@ -298,7 +299,6 @@ def extract_optimization_results(
         for valc, val in zip(col, x_data):
             res_x.update({valc: val})
         X = pd.DataFrame([res_x])
-
     F = pd.DataFrame(res.F, columns=problem.obj_names)
 
     try:
@@ -555,8 +555,8 @@ if __name__ == "__main__":
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_single'
     set_dead_objects(0)
-    pop_size = 15
-    offsprings = 15
+    pop_size = 100
+    offsprings = 100
     crossover_chance = 0.8
     mutation_chance = 0.5
     set_problem_name(problem_name)
@@ -636,7 +636,7 @@ if __name__ == "__main__":
             'LAS': (0.2, 1.5)
         }
         # objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        objectives = ['LMN_open', 'Smax']
+        objectives = ['1 - LMN_open', 'Smax']
         constraints = []  # 'LMN_op_constr',
         # 'LMN_cl_constr',
         # 'VMS_constr']
@@ -666,7 +666,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 5,
-        "n_max_gen": 10000,
+        "n_max_gen": 1000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -788,19 +788,30 @@ if __name__ == "__main__":
     except Exception as e:
         print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
 
-    # Pareto front for "welded beam" problem
+    # Parameters over generation
     try:
-        create_pareto_front_plot(
-            csv_path=os.path.join(folder_path, 'history.csv'),
-            data=optimization_results['F'],
-            objectives=problem.obj_names,
-            folder_path=folder_path,
-            pymoo_problem="welded_beam"
+        plot_parameters_over_generation(
+            optimization_results['history'],
+            problem.param_names,
+            problem.obj_names,
+            folder_path
         )
-        print(colored("Pareto front plotted successfully.", "green"))
+        print(colored("Parameters over generations plotted successfully.", "green"))
     except Exception as e:
-        print(colored(f"Failed to create Pareto front plot: {str(e)}", "red"))
+        print(colored(f"Failed to create Parameters over generations  plot: {str(e)}", "red"))
 
+    # Pareto front
+    try:
+        plot_pareto_with_trade_off(
+            history=optimization_results['history'],
+            F=optimization_results['F'],
+            objectives=problem.obj_names,
+            weights='equal',
+            folder_path=folder_path
+        )
+        print(colored("Best trade-off plot created successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
     cleanup_logger(logger)
     del logger
     sys.stdout = basic_stdout
