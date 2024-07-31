@@ -10,7 +10,8 @@ import pathlib
 from random import random
 from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
                                    get_cpus, get_base_name, get_s_lim, get_percent,
-                                   set_dead_objects, get_dead_objects, get_direction, change_direction)
+                                   set_dead_objects, get_dead_objects, get_direction,
+                                   change_direction)
 from pymoo.problems import get_problem
 from utils.get_history_output import get_history_output as get_history_output
 from utils.runabaqus import runabaqus_no_walltime as runabaqus
@@ -418,7 +419,7 @@ class Procedure:
                 }
 
                 constraints_dict = {
-                    "VMS_constr": VMS
+                    "VMS-Smax": VMS - get_s_lim()
                 }
 
                 # cleanup_log_leaflet()
@@ -429,13 +430,14 @@ class Procedure:
                 log_message(f'Exception: {exept}')
 
                 objectives_dict = {
-                    'LMN_open': -1.0,
+                    'LMN_open': 0.0,
+                    '1 - LMN_open': 2.0,
                     "LMN_closed": 2.0,
                     "Smax": 50
                 }
 
                 constraints_dict = {
-                    "VMS_constr": 50
+                    "VMS-Smax": 50
                 }
 
                 # cleanup_log_leaflet()
@@ -623,13 +625,15 @@ class Procedure:
 
                 objectives_dict = {
                     'LMN_open': 0.0,
-                    "LMN_closed": 1.0,
+                    '1 - LMN_open': 2.0,
+                    "LMN_closed": 2.0,
                     "Smax": 50
                 }
 
                 constraints_dict = {
                     "LMN_op_constr": 0.0,
-                    "LMN_cl_constr": 1.0,
+                    "1 - LMN_op_constr": 2.0,
+                    "LMN_cl_constr": 2.0,
                     "Smax_constr": 50
                 }
                 # cleanup_log_leaflet()

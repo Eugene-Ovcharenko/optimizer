@@ -180,7 +180,7 @@ class Problem(ElementwiseProblem):
             # print(f'obj: {objectives_dict}')
             constraint_values = result['constraints']
             constraints_dict = {
-                "VMS_constr": constraint_values['VMS_constr'] - get_s_lim() + 1
+                "VMS-Smax": constraint_values['VMS-Smax']
             }
             # print(f'cons: {constraints_dict}')
         elif problem_name == 'leaflet_contact':
@@ -196,7 +196,7 @@ class Problem(ElementwiseProblem):
             constraints_dict = {
                 # "LMN_op_constr": constraint_values['LMN_op_constr'],
                 # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-                "VMS_constr": constraint_values['VMS_constr'] - get_s_lim()
+                "VMS-Smax": constraint_values['VMS_constr'] - get_s_lim()
             }
         elif problem_name == 'test':
             curr_rand = random() * 100
@@ -548,20 +548,20 @@ def save_object(obj, filepath, filename):
 
 
 if __name__ == "__main__":
-    gc.enable()  # enable garbage collector to avoid memory leak
+#    gc.enable()  # enable garbage collector to avoid memory leak
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
     set_mesh_step(0.6)
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_single'
     set_dead_objects(0)
-    pop_size = 100
-    offsprings = 100
-    crossover_chance = 0.8
-    mutation_chance = 0.5
+    pop_size = 80
+    offsprings = 80
+    crossover_chance = 0.9
+    mutation_chance = 0.3
     set_problem_name(problem_name)
     crossover_eta = 50
-    mutation_eta = 50
+    mutation_eta = 100
 
     percent = 0  # synthetic % of lost results
 
@@ -637,9 +637,9 @@ if __name__ == "__main__":
         }
         # objectives = ['LMN_open', 'LMN_closed', 'Smax']
         objectives = ['1 - LMN_open', 'Smax']
-        constraints = []  # 'LMN_op_constr',
+        constraints = [  # 'LMN_op_constr'],
         # 'LMN_cl_constr',
-        # 'VMS_constr']
+        'VMS-Smax']
         ref_point = np.array([1, 0, get_s_lim()])
     print('Parameters:', parameters)
     print('Objectives:', objectives)
