@@ -37,27 +37,21 @@ def computeOpened(disp=None, nodes=None, mesh_step=0.35):
     theta, rho, z = cart2pol(x=deformed[:, 0], y=deformed[:, 1], lz=deformed[:, 2])
     thetaN, rhoN, zN = cart2pol(x=nodes[:, 0], y=nodes[:, 1], lz=nodes[:, 2])
     rho[np.argwhere(rho > max(rhoN))] = max(rhoN)
-    # rhoN[np.argwhere(rhoN > max(nodes[:, 1]))] = max(nodes[:, 1])
-    readedPoints1 = np.array(pol2cart(phi=theta, rho=rho, lz=z), dtype='float64').T
-    # nodes = np.array(pol2cart(phi=thetaN, rho=rhoN, lz=zN), dtype='float64').T
-    # readedPoints1 = deformed
-    # nodes[:, -1] = 0
+    readedPoints1 = np.array(pol2cart(theta=theta, rho=rho, lz=z), dtype='float64').T
     readedPoints1[:, -1] = 0
-
-    # del theta, rho, z
-
     tri = spatial.Delaunay(nodes[:, :-1])
     init_square = 0
     for t in tri.simplices:
         init_square += compute_square(nodes[t[0], :], nodes[t[1], :], nodes[t[2], :])
     del t
+    def_square = 0
+    for t in tri.simplices:
+        def_square += compute_square(readedPoints1[t[0], :], readedPoints1[t[1], :], readedPoints1[t[2], :])
 
-    import matplotlib.pyplot as plt
-    plt.triplot(nodes[:, 0], nodes[:, 1], tri.simplices)
-    plt.plot(nodes[:, 0], nodes[:, 1], 'o')
-    #
-    shape = alphashape(readedPoints1[:, :-1], alpha=1)
-    def_square = shape.area
+    # import matplotlib.pyplot as plt
+    # plt.triplot(nodes[:, 0], nodes[:, 1], tri.simplices)
+    # plt.plot(nodes[:, 0], nodes[:, 1], 'o')
+    # shape = alphashape(readedPoints1[:, :-1], alpha=1)
 
     # x, y = shape.boundary.xy
     # plt.plot(x, y, color='#6699cc', alpha=0.7,linewidth=3, solid_capstyle='round', zorder=2)
@@ -66,25 +60,45 @@ def computeOpened(disp=None, nodes=None, mesh_step=0.35):
     # del x, y
 
     # tri_def = spatial.Delaunay(readedPoints1[:, :-1])
-    # def_square = 0
-    # for t in tri_def.simplices:
-    #     def_square += compute_square(readedPoints1[t[0], :], readedPoints1[t[1], :], readedPoints1[t[2], :])
-    # plt.triplot(readedPoints1[:, 0], readedPoints1[:, 1], tri_def.simplices)
+    # plt.triplot(readedPoints1[:, 0], readedPoints1[:, 1], tri.simplices)
     # plt.plot(readedPoints1[:, 0], readedPoints1[:, 1], 'x')
     # plt.show()
     # log_message("init_square %.6f - def_square %.6f = %.6f" % (init_square, def_square, init_square - def_square))
-    del shape, readedPoints1, nodes
-    return def_square
+    # del readedPoints1, nodes
 
+    return def_square
 
 def computeClosed(disp1=None, disp2=None, disp3=None, nodes1=None, nodes2=None, nodes3=None, mesh_step=None):
     # получаем матрицу нодов деформированной створки, в цилиндрических координатах откидываем ноды > RAD,
     # накидываем триангуляцию, считаем площадь
+    def fit_leaf(deformed):
+
+        theta, rho, z = cart2pol(x=deformed[:, 0], y=deformed[:, 1], lz=deformed[:, 2])
+        thera_deg = np.rad2deg(theta)
+        thera_deg[np.argwhere(thera_deg < (90-120/2))] = (90-120/2)
+        thera_deg[np.argwhere(thera_deg > (90+120/2))] = (90+120/2)
+        deformed_new = deformed
+        deformed_new[:, 0], deformed_new[:, 1], deformed_new[:, 2] = pol2cart(theta=np.deg2rad(thera_deg), rho=rho, lz=z)
+
+        # import matplotlib.pyplot as plt
+        # # ashp = alphashape(deformed[:, :-1], alpha=1)
+        # # x, y = ashp.boundary.xy
+        # # plt.plot(x, y, color='#6699cc', alpha=0.7, linewidth=3, solid_capstyle='round', zorder=2)
+        # plt.plot(deformed_new[:, 0], deformed_new[:, 1], 'x')
+        # plt.show()
+
+        return deformed_new
+
+    cos120pl, cos120min = np.cos(np.deg2rad(120)), np.cos(np.deg2rad(-120))
+    sin120pl, sin120min = np.sin(np.deg2rad(120)), np.sin(np.deg2rad(-120))
+    rotMatrixPlus = [[cos120pl, -sin120pl, 0], [sin120pl, cos120pl, 0], [0, 0, 1]]
+    rotMatrixMinus = [[cos120min, -sin120min, 0], [sin120min, cos120min, 0], [0, 0, 1]]
+
     deformed1 = nodes1 + disp1
     ashp1 = alphashape(deformed1[:, :-1], alpha=1)
-    deformed2 = nodes2 + disp2
+    deformed2 = fit_leaf(np.dot(nodes2 + disp2, rotMatrixMinus))
     ashp2 = alphashape(deformed2[:, :-1], alpha=1)
-    deformed3 = nodes3 + disp3
+    deformed3 = fit_leaf(np.dot(nodes2 + disp2, rotMatrixPlus))
     ashp3 = alphashape(deformed3[:, :-1], alpha=1)
 
     # import matplotlib.pyplot as plt

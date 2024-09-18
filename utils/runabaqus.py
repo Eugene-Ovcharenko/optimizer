@@ -3,6 +3,7 @@ import os
 import datetime
 import time
 import sys
+import psutil as psu
 from .logger_leaflet import log_message
 
 
@@ -10,35 +11,46 @@ from .logger_leaflet import log_message
 # проверка на существование файла .lck - если есть, значит расчет еще идет.
 def runabaqus(Path=None, jobName=None, InpFile=None, cpus=None):
     inputFile = 'abaqus job=' + str(jobName) + ' inp=' + str(InpFile) + ' cpus=' + str(cpus) + ' mp_mode=threads'
-    #print("InpFile CL is: >> " + inputFile)
+    log_message("InpFile CL is: >> " + inputFile)
     t0 = datetime.datetime.now()
     MatlabPath = os.getcwd()
     os.chdir(Path)
     outputs_args = os.system(inputFile)
     time.sleep(10)
     os.chdir(MatlabPath)
+    message = 'ABAQUS complete'
+    checked = False
+    current_user = psu.users()[0].name
     if (os.path.exists(Path + '/' + jobName + '.lck')):
-        log_message('-------------ABAQUS calculating-------------' % ())
+        log_message('-------------ABAQUS calculating-------------')
         while (os.path.exists(Path + '/' + jobName + '.lck')):
 
             t = datetime.datetime.now() - t0
             sec = t.seconds
             m = int(sec / 60) % 60
             h = int(sec / 3600)
-            if m < 30:
+            if m > 1 and not checked:
+                for proc in psu.process_iter(['name', 'username']):
+                    if 'pre' in proc.name() and current_user in proc.username():
+                        os.system('pkill -n -9 pre')
+                        message = 'ABAQUS terminated with error in pre'
+                        break
+                    if 'package' in proc.name() and current_user in proc.username():
+                        os.system('pkill -n -9 package')
+                        message = 'ABAQUS terminated with error in package'
+                        break
+                checked = True
+            if m < 60:
                 time.sleep(30)
-                log_message('\r\t time costed: %3d:%2d:%2d' % (h, m, np.mod(sec, 60)))
             else:
-                os.system('pkill -9 explicit')
-                message = 'ABAQUS terminate'
+                os.system('pkill -n -9 explicit')
+                message = 'ABAQUS terminated due time'
                 log_message('\t time costed: %3d:%2d:%2d\n-------------ABAQUS terminate-------------' % (h, m, np.mod(sec, 60)))
                 break
-
-        message = 'ABAQUS complete'
-        log_message('\n-------------ABAQUS complete-------------' % (h, m, np.mod(sec, 60)))
+        log_message('\n-------------ABAQUS complete-------------' )
     else:
         message = 'runanaqus error: InpFile submit failed'
-        log_message('\n runanaqus error: InpFile submit failed\n' % ())
+        log_message('\n runanaqus error: InpFile submit failed\n')
 
     return message
     
@@ -68,6 +80,7 @@ def runabaqus_no_walltime(Path=None, jobName=None, InpFile=None, cpus=None):
         log_message('\n runanaqus error: InpFile submit failed\n' % ())
 
     return message
+
 
 def runabaqus_minute_walltime(Path=None, jobName=None, InpFile=None, cpus=None, minutes=5):
     inputFile = 'abaqus job=' + str(jobName) + ' inp=' + str(InpFile) + ' cpus=' + str(cpus) + ' mp_mode=threads'

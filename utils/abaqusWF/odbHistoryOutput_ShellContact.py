@@ -27,7 +27,6 @@ for instance in odb.rootAssembly.instances.keys():
             os.makedirs(path2)    
         except:
             path2 = req[0]+'/results/'+instance[0:-7]+'/'+instance+'/'
-            print 'folder already exist' 
     else:
         path2 = req[0]+'/results/'
     
@@ -44,11 +43,12 @@ for instance in odb.rootAssembly.instances.keys():
             DataFile.write('\n')
     
     # Field output  
-    if len(odb.steps['Step-1'].frames) >= 27:
-        ids = [9, 27]
-    else:
-        ids = [5, 14]
-    
+    ids = [5, 14]
+
+    # Field output
+    with open(req[0] + '/results/' + instance[0:-7] + '/FramesCount.txt', 'w') as DataFile:
+        DataFile.write("%d " % (len(odb.steps['Step-1'].frames)))
+
     for id in ids:
         currFrame = odb.steps['Step-1'].frames[id]
         displacement=currFrame.fieldOutputs['U'].getSubset(region=odb.rootAssembly.instances[instance].nodeSets['SET-1'])

@@ -23,7 +23,7 @@ import time
 from random import random
 from glob2 import glob
 from utils.global_variable import (set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id,
-                                   set_dead_objects, set_mesh_step)
+                                   set_dead_objects, set_mesh_step, set_valve_position)
 import pickle
 
 
@@ -187,16 +187,15 @@ class Problem(ElementwiseProblem):
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
             objectives_dict = {
-                'LMN_open': 1 - objective_values['LMN_open'],
+                '1 - LMN_open': 1 - objective_values['LMN_open'],
+                "LMN_open": objective_values['LMN_open'],
                 "LMN_closed": objective_values['LMN_closed'],
-                "Smax": objective_values['Smax']
-                # "I":  objective_values['I']
+                "Smax - Slim": objective_values['Smax - Slim'],
+                "HELI": objective_values['HELI']
             }
             constraint_values = result['constraints']
             constraints_dict = {
-                # "LMN_op_constr": constraint_values['LMN_op_constr'],
-                # "LMN_cl_constr": constraint_values['LMN_cl_constr'],
-                "VMS-Smax": constraint_values['VMS_constr'] - get_s_lim()
+                "VMS-Smax": constraint_values['VMS-Smax']
             }
         elif problem_name == 'test':
             curr_rand = random() * 100
@@ -215,24 +214,10 @@ class Problem(ElementwiseProblem):
                     "constraint4": constraint_values[3]
                 }
             else:
-                # param_array = np.array(list(parameters.values()))
-                # result = problem.evaluate(param_array)
-                # objective_values = result[0]
-                # objectives_dict = {
-                #     "objective1": objective_values[0],
-                #     "objective2": objective_values[1]
-                # }
                 objectives_dict = {
                     "objective1": 1000,
                     "objective2": 1000
                 }
-                # constraint_values = result[1]
-                # constraints_dict = {
-                #     "constraint1": constraint_values[0],
-                #     "constraint2": constraint_values[1],
-                #     "constraint3": constraint_values[2],
-                #     "constraint4": constraint_values[3]
-                # }
                 constraints_dict = {
                     "constraint1": 100,
                     "constraint2": 100,
@@ -548,15 +533,15 @@ def save_object(obj, filepath, filename):
 
 
 if __name__ == "__main__":
-#    gc.enable()  # enable garbage collector to avoid memory leak
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
-    set_mesh_step(0.6)
+    set_mesh_step(0.5)
+    set_valve_position('ao') # can be 'mitr'
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
-    problem_name = 'leaflet_single'
+    problem_name = 'leaflet_contact'
     set_dead_objects(0)
-    pop_size = 80
-    offsprings = 80
+    pop_size = 30
+    offsprings = 10
     crossover_chance = 0.9
     mutation_chance = 0.3
     set_problem_name(problem_name)
@@ -578,9 +563,9 @@ if __name__ == "__main__":
         set_cpus(6)
         typeof = 'Single leaf'
     elif problem_name.lower() == 'leaflet_contact':
-        set_base_name('cont_test')
-        set_s_lim(1.5)
-        set_cpus(6)
+        set_base_name('Aortal_test')
+        set_s_lim(3.23) # Formlabs elastic 50A
+        set_cpus(14)
         typeof = 'Contact'
     else:
         typeof = problem_name
@@ -630,16 +615,19 @@ if __name__ == "__main__":
         ref_point = np.array([100, 0.1])
     elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
         parameters = {
+            'HGT': (13, 15),
             'Lstr': (0, 1),
+            'THK': (0.15, 0.6),
             'ANG': (-10, 10),
             'CVT': (0.1, 0.8),
             'LAS': (0.2, 1.5)
         }
         # objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        objectives = ['1 - LMN_open', 'Smax']
-        constraints = [  # 'LMN_op_constr'],
+        objectives = ['1 - LMN_open', 'LMN_closed', 'Smax - Slim', 'HELI']
+        # constraints = [  # 'LMN_op_constr'],
         # 'LMN_cl_constr',
-        'VMS-Smax']
+        # 'VMS-Smax']
+        constraints = []
         ref_point = np.array([1, 0, get_s_lim()])
     print('Parameters:', parameters)
     print('Objectives:', objectives)

@@ -9,7 +9,7 @@ from pymoo.indicators.hv import Hypervolume
 from pymoo.problems import get_problem
 from pymoo.visualization.scatter import Scatter
 from pymoo.decomposition.asf import ASF
-from .global_variable import get_problem_name
+from .global_variable import get_problem_name, get_s_lim
 import matplotlib.colors as mcolors
 import matplotlib as mpl
 
@@ -247,7 +247,7 @@ def plot_objective_convergence(
         min_per_generation = history_df.groupby('generation')[obj_col].min()
         sns.lineplot(x=unique_generations, y=min_per_generation, ax=axes[idx],
                      marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col_print}")
-        axes[idx].set_title(f"Convergence of {obj_col_print}")
+        axes[idx].set_title(f"Convergence of ({obj_col_print})")
         axes[idx].set_xlabel("Generation")
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_convergence.png'))
@@ -444,7 +444,7 @@ def plot_best_objectives(
                 color="red",
                 ax=ax
             )
-            ax.set_title(f"Objective {F.columns[i]} vs Objective {F.columns[j]}")
+            ax.set_title(f"Objective ({F.columns[i]}) vs Objective ({F.columns[j]})")
             ax.set_xlabel(F.columns[i])
             ax.set_ylabel(F.columns[j])
             plot_idx += 1
@@ -503,7 +503,7 @@ def plot_parameters_over_generation(
         return figure
 
     # Create the colormap with red for lower values and blue for higher values
-    cmap_red_blue = plt.cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=1), cmap='coolwarm')
+    cmap_red_blue = plt.cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=1), cmap='coolwarm_r')
 
     # Normalize the objectives to create a color map
     # Convert normalized values to colors using the red to blue colormap
@@ -513,18 +513,22 @@ def plot_parameters_over_generation(
 
     # plt.figure(figsize=(60, 10))
     f, ax = plt.subplots(n_objectives, n_param, figsize=(10 * n_param, 10))
-    plt.set_cmap('coolwarm')
+    plt.set_cmap('coolwarm_r')
     for iter_obj in range(n_objectives):
         norm_obj = mcolors.Normalize(vmin=data[objectives[iter_obj]].min(), vmax=data[objectives[iter_obj]].max())
         colors_obj = cmap_red_blue.to_rgba(norm_obj(data[objectives[iter_obj]]))
+        if iter_obj in [1, 2]:
+            ylim = 1
+        else:
+            ylim = get_s_lim()
         for iter_param in range(n_param):
             # Plot parameters over generations with hue based on 1 - LMN_open
-            print(f'{parameters[iter_param]} over Generations (Hue: {objectives[iter_obj]})')
+            #print(f'({parameters[iter_param]}) over Generations (Hue: {objectives[iter_obj]})')
             fig = plot_parameter_with_hue(
                 ax[iter_obj, iter_param],
                 parameters[iter_param],
                 colors_obj,
-                f'{parameters[iter_param]} over Generations (Hue: {objectives[iter_obj]})'
+                f'({parameters[iter_param]}) over Generations (Hue: {objectives[iter_obj]})'
             )
         cbar = f.colorbar(fig, ax=ax[iter_obj, -1], location='right', cmap=cmap_red_blue)
         cbar.set_ticks([fig.colorbar.vmin + t * (fig.colorbar.vmax - fig.colorbar.vmin) for t in cbar.ax.get_yticks()])
@@ -538,7 +542,6 @@ def plot_parameters_over_generation(
                 3
             )
         )
-
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'parameters over generations.png'))
 
@@ -637,7 +640,7 @@ def plot_pareto_with_trade_off(
             pareto_sorted = pareto_front.sort_values(by=[F.columns[i], F.columns[j]])
             ax.plot(pareto_sorted[F.columns[i]], pareto_sorted[F.columns[j]], label="Pareto front", color="green")
 
-            ax.set_title(f"Objective {F.columns[i]} vs Objective {F.columns[j]}")
+            ax.set_title(f"Objective ({F.columns[i]}) vs Objective ({F.columns[j]})")
             ax.set_xlabel(F.columns[i])
             ax.set_ylabel(F.columns[j])
             plot_idx += 1

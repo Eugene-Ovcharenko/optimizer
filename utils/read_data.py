@@ -5,7 +5,7 @@ import datetime
 from openpyxl import load_workbook
 from .computeGap import *
 from .helicopter import helicopter
-from .global_variable import get_problem_name
+from .global_variable import get_problem_name, get_valve_position
 from .logger_leaflet import log_message
 
 
@@ -126,8 +126,12 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         newstr = ''.join((ch if ch in '0123456789' else ' ') for ch in stressFiles[1])
         two_step = ([int(i) for i in newstr.split()])[-1]
 
-        closed_step = max(one_step, two_step)
-        opened_step = min(one_step, two_step)
+        if get_valve_position().lower() == 'ao':
+            closed_step = max(one_step, two_step)
+            opened_step = min(one_step, two_step)
+        else:
+            closed_step = min(one_step, two_step)
+            opened_step = max(one_step, two_step)
 
         del newstr, one_step, two_step
 
@@ -176,12 +180,12 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         sin120pl, sin120min = np.sin(np.deg2rad(120)), np.sin(np.deg2rad(-120))
         rotMatrixPlus = [[cos120pl, -sin120pl, 0], [sin120pl, cos120pl, 0], [0, 0, 1]]
         rotMatrixMinus = [[cos120min, -sin120min, 0], [sin120min, cos120min, 0], [0, 0, 1]]
-        isHelicopter = helicopter(
-            nodes=(mesh1.nodes[:, 1:] + disp1[:len(mesh1.nodes[:, 1:]), 1:]), SEC=SEC
-        ) + helicopter(
-            nodes=np.dot(mesh2.nodes[:, 1:] + disp2[:len(mesh2.nodes[:, 1:]), 1:], rotMatrixMinus), SEC=SEC
-        ) + helicopter(
-            nodes=np.dot(mesh3.nodes[:, 1:] + disp3[:len(mesh3.nodes[:, 1:]), 1:], rotMatrixPlus), SEC=SEC
+        isHelicopter = np.max(
+            (
+                helicopter(nodes=(mesh1.nodes[:, 1:] + disp1[:len(mesh1.nodes[:, 1:]), 1:])),
+                helicopter(nodes=np.dot(mesh2.nodes[:, 1:] + disp2[:len(mesh2.nodes[:, 1:]), 1:], rotMatrixMinus)),
+                helicopter(nodes=np.dot(mesh3.nodes[:, 1:] + disp3[:len(mesh3.nodes[:, 1:]), 1:], rotMatrixPlus))
+            )
         )
         del outGap1, outGap2, outGap3, mesh1, mesh2, mesh3, disp1, disp2, disp3, closed_step, opened_step
         del cos120pl, cos120min, sin120min, sin120pl, rotMatrixMinus, rotMatrixPlus
@@ -395,7 +399,7 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         wbGeom.save(outFileNameGeom)
         wbGeom.close()
 
-    return LMN_op, LMN_cl, Smax, VMS, perf_index
+    return LMN_op, LMN_cl, Smax, VMS, perf_index, isHelicopter
 
 def read_data(pathToAbaqus=None, endPath=None, partName=None, Width=-1, ID=-1, frames=-1, Slim=9.9,
               HGT=-1, Lstr=-1, DIA=10, THK=-1, ANG=-1, Lift=-1, CVT=-1, LAS=-1, EM=-1,  SEC=120,

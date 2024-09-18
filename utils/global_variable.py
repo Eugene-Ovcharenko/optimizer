@@ -8,8 +8,9 @@ class Params:
     Slim = 0
     dead_objects = 0
     direction = 'direct'
+    valve_position = 'ao'
 
-    def __init__(self, percent, problem_name, id, cpus, mesh_step, baseName, Slim, dead_obj, direction):
+    def __init__(self, percent, problem_name, id, cpus, mesh_step, baseName, Slim, dead_obj, direction, valve_position):
         self.percent = percent
         if (
                 problem_name.lower() == 'beam'
@@ -33,6 +34,7 @@ class Params:
         self.Slim = Slim
         self.dead_objects = dead_obj
         self.direction = direction
+        self.valve_position = valve_position
 
 
 params = Params(
@@ -44,7 +46,8 @@ params = Params(
     baseName='changeIt',
     Slim=0,
     dead_obj=0,
-    direction='direct'
+    direction='direct',
+    valve_position='ao'
 )
 
 
@@ -79,6 +82,9 @@ def set_base_name(val: str):
 def set_s_lim(val: float):
     params.Slim = val
 
+
+def set_valve_position(val: str):
+    params.valve_position = val
 
 def change_direction():
     if params.direction.lower() == 'direct':
@@ -121,3 +127,6 @@ def get_dead_objects() -> int:
 
 def get_direction() -> str:
     return params.direction
+
+def get_valve_position() -> str:
+    return params.valve_position

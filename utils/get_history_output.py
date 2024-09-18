@@ -37,7 +37,7 @@ def get_history_output_single(pathName=None, odbFileName=None, cpus=-1):
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
     consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_4perField.py'
-    os.system(consoleCommand)
+    outputs_args = os.system(consoleCommand)
 
 
 def get_history_output_contact(pathName=None, odbFileName=None, cpu=-1):
@@ -56,7 +56,8 @@ def get_history_output_contact(pathName=None, odbFileName=None, cpu=-1):
         consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_ShellContact.py'
     else:
         consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_ShellContact_' + str(cpu) + '.py'
-    os.system(consoleCommand)
+    outputs_args = os.system(consoleCommand)
+    return outputs_args
 
 
 def get_history_output(pathName=None, odbFileName=None, cpus=-1):

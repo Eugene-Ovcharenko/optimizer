@@ -64,15 +64,15 @@ def interparc(npoints=None, x_sample=None, y_sample=None, z_sample=None, key='li
 # аналогичная функция из Matlab
 def cart2pol(x, y, lz):
     rho = np.sqrt(x**2 + y**2)
-    phi = np.arctan2(y, x)
+    theta = np.arctan2(y, x)
     z = lz
-    return phi, rho, z
+    return theta, rho, z
 
 
 # аналогичная функция из Matlab
-def pol2cart(phi=None, rho=None, lz=None):
-    x = rho * np.cos(phi)
-    y = rho * np.sin(phi)
+def pol2cart(theta=None, rho=None, lz=None):
+    x = rho * np.cos(theta)
+    y = rho * np.sin(theta)
     z = lz
     return x, y, z
 
