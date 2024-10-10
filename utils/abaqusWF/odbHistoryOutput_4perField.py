@@ -52,9 +52,9 @@ for instance in odb.rootAssembly.instances.keys():
         ids = [9, 27]
     else:
         if len(odb.steps['Step-1'].frames) >= 14:
-            ids = [3, 17]
+            ids = [5, 14]
         else:
-            ids = [3]
+            ids = [5]
 
     for l_id in ids:
         currFrame = odb.steps['Step-1'].frames[l_id]
