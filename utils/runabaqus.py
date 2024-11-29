@@ -2,6 +2,7 @@ import numpy as np
 import os
 import datetime
 import time
+import subprocess
 import sys
 import psutil as psu
 from .logger_leaflet import log_message
@@ -10,12 +11,12 @@ from .logger_leaflet import log_message
 # простой запуск консолькой команды.
 # проверка на существование файла .lck - если есть, значит расчет еще идет.
 def runabaqus(Path=None, jobName=None, InpFile=None, cpus=None):
-    inputFile = 'abaqus job=' + str(jobName) + ' inp=' + str(InpFile) + ' cpus=' + str(cpus) + ' mp_mode=threads'
+    inputFile = 'abaqus job=' + str(jobName) + ' inp=' + str(InpFile) + ' cpus=' + str(cpus) + ' mp_mode=threads ask_delete=OFF'
     log_message("InpFile CL is: >> " + inputFile)
     t0 = datetime.datetime.now()
     MatlabPath = os.getcwd()
     os.chdir(Path)
-    outputs_args = os.system(inputFile)
+    out_args = subprocess.check_output(inputFile, shell=True)
     time.sleep(10)
     os.chdir(MatlabPath)
     message = 'ABAQUS complete'

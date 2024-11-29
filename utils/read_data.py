@@ -5,7 +5,7 @@ import datetime
 from openpyxl import load_workbook
 from .computeGap import *
 from .helicopter import helicopter
-from .global_variable import get_problem_name, get_valve_position
+from .global_variable import get_problem_name, get_valve_position, get_id
 from .logger_leaflet import log_message
 
 
@@ -324,9 +324,9 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
         perf_index = 0
     if LMN_op > 0:
         if len(subfolders)> 1:
-            new_row_short = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
+            new_row_short = [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
                              np.round(LMN_cl, 3), np.round(Smax, 4), perf_index]
-            new_row_desc = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
+            new_row_desc = [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
                             perf_index,
                             tangent_behavior, normal_behavior, carea, opened_area, maxORFC, (maxORFC - closed_area),
                             isHelicopter,
@@ -359,9 +359,9 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
                             max(le_max3_1step[5], le_max3_2step[5]),  # LEmin
                             eleCount, 3 * eleCount, outFEATime, frames, tdiff1]
         else:
-            new_row_short = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
+            new_row_short = [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, np.round(LMN_op, 3),
                              np.round(LMN_cl, 3), np.round(Smax, 4), perf_index]
-            new_row_desc = [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
+            new_row_desc = [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, LMN_op, LMN_cl, Smax,
                             perf_index, tangent_behavior, normal_behavior, -1, opened_area, maxORFC,
                             (maxORFC - closed_area), -1,
                             VMS, S11, S22, S33, Smid, Smin, LE11, LE22, LE33, LEmax, LEmid, LEmin,
@@ -387,14 +387,14 @@ def read_data_leaf(pathToAbaqus=None, endPath=None, partName=None, Slim=9.9,
 
         wbGeom = load_workbook(filename=outFileNameGeom)
         sheet = wbGeom['log']
-        sheet.append([fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
+        sheet.append([fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
                       tangent_behavior, normal_behavior, frames, str('Done'), tdiff1])
         wbGeom.save(outFileNameGeom)
         wbGeom.close()
     else:
         wbGeom = load_workbook(filename=outFileNameGeom)
         sheet = wbGeom['log']
-        sheet.append([fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
+        sheet.append([fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM,
                       tangent_behavior, normal_behavior, frames, str('LMN_op < 0, rerun'), tdiff1])
         wbGeom.save(outFileNameGeom)
         wbGeom.close()

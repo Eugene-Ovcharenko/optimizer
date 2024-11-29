@@ -28,7 +28,7 @@ now = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-').split('.'
 now = now[:-3]
 
 pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/abaqusWF/'
-
+path_utils = str(pathlib.Path(__file__).parent.resolve())
 
 # procedure parameters class
 class Procedure:
@@ -478,7 +478,7 @@ class Procedure:
                     delta = datetime.datetime.now() - tt1
                     sheet = self.wbLog['log']
                     sheet.append(
-                        [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                        [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          0, str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
@@ -494,11 +494,11 @@ class Procedure:
                         pcd = o3d.geometry.PointCloud()
                         pcd.points = o3d.utility.Vector3dVector(points.T)
                         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.5 * k)
-                        _ = o3d.io.write_triangle_mesh('./utils/geoms/temp_' + '.ply', mesh, write_vertex_normals=True)
+                        _ = o3d.io.write_triangle_mesh(path_utils+'/geoms/temp_' + '.ply', mesh, write_vertex_normals=True)
 
-                        mesh = trimesh.load_mesh('./utils/geoms/temp_' + '.ply')
+                        mesh = trimesh.load_mesh(path_utils + '/geoms/temp_' + '.ply')
                         mesh.fix_normals()  # fix wrong normals
-                        mesh.export('./utils/geoms/temp_' + '.stl')
+                        mesh.export(path_utils + '/geoms/temp_' + '.stl')
 
                         flag_calk_k = False
                     except:
@@ -519,7 +519,7 @@ class Procedure:
                     delta = datetime.datetime.now() - tt1
                     sheet = self.wbLog['log']
                     sheet.append(
-                        [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                        [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          0, str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
@@ -549,7 +549,7 @@ class Procedure:
                     # wbGeom = load_workbook(filename=self.outFileNameLog)
                     sheet = self.wbLog['log']
                     sheet.append(
-                        [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                        [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          0, str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
@@ -567,7 +567,7 @@ class Procedure:
                     with open(pathToAbaqus + '/results/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
                         frames = int(DataFile.read())
                     sheet.append(
-                        [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                        [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          frames,
                          'Odb parse problem', delta])
@@ -605,14 +605,14 @@ class Procedure:
                         # wbGeom = load_workbook(filename=self.outFileNameLog)
                         sheet = self.wbLog['log']
                         sheet.append(
-                            [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                            [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                              normal_behavior,
                              0, str(e), delta])
                         self.wbLog.save(self.outFileNameLog)
                         self.wbLog.close()
                         del delta, sheet
                         raise e
-
+                    #change_direction()
                     # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
                     try: # already in try: and switched direction
                         _ = get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
@@ -623,7 +623,7 @@ class Procedure:
                         with open(pathToAbaqus + '/results/' + partName[0:-5] + '/FramesCount.txt', 'r') as DataFile:
                             frames = int(DataFile.read())
                         sheet.append(
-                            [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                            [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                              normal_behavior,
                              frames,
                              'Odb parse problem', delta])
@@ -649,7 +649,7 @@ class Procedure:
                         # wbGeom = load_workbook(filename=self.outFileNameLog)
                         sheet = self.wbLog['log']
                         sheet.append(
-                            [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                            [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                              normal_behavior,
                              0, str(e), delta])
                         self.wbLog.save(self.outFileNameLog)
@@ -665,7 +665,7 @@ class Procedure:
                     except:
                         frames = 0
                     sheet.append(
-                        [fileName, HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
+                        [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          frames,
                          str(e), delta])
@@ -929,7 +929,7 @@ def init_procedure(param_array):
         if not glob(os.path.join(folder_path, outFileNameGeom)):
             # подготовка таблиц
             colNamesRes = pd.DataFrame(
-                {'fileName': [], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
+                {'fileName': [], 'ID':[], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
                  'ANG, deg': [], 'Lift, mm': [], 'CVT, %': [], 'LAS, mm': [],
                  'EM, MPa': [], 'LMN_open, mm^2/mm^2': [], 'LMN_closed, mm^2/mm^2': [], 'Smax, MPa': [], 'I': [],
                  'Tangent behavior': [], 'Normal Behavior': [],
@@ -953,7 +953,7 @@ def init_procedure(param_array):
                  'Total time, hh:mm:ss.ms': []})
 
             colNamesRes_short = pd.DataFrame(
-                {'fileName': [], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
+                {'fileName': [], 'ID':[], 'HGT, mm': [], 'Lstr, mm': [], 'SEC, deg': [], 'DIA, mm': [], 'THK, mm': [],
                  'ANG, deg': [], 'Lift, mm': [], 'CVT, %': [], 'LAS, mm': [],
                  'EM, MPa': [], 'LMN_open, mm^2/mm^2': [], 'LMN_closed, mm^2/mm^2': [], 'Smax, MPa': [], 'I': []})
 
@@ -963,7 +963,7 @@ def init_procedure(param_array):
             writerRes._save()
 
             colNamesGeoms = pd.DataFrame(
-                {'fileName': [], 'HGT': [], 'Lstr': [], 'SEC': [], 'DIA': [], 'THK': [],
+                {'fileName': [], 'ID':[], 'HGT': [], 'Lstr': [], 'SEC': [], 'DIA': [], 'THK': [],
                  'ANG': [], 'Lift': [], 'CVT': [], 'LAS': [], 'EM': [],
                  'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': []})
 

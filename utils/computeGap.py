@@ -32,6 +32,9 @@ def unique_rows(A, atol=10e-5):
 def computeOpened(disp=None, nodes=None, mesh_step=0.35):
     # получаем матрицу нодов деформированной створки, в цилиндрических координатах откидываем ноды > RAD,
     # накидываем триангуляцию, считаем площадь
+    def diff(p1, p2):
+         return ((p2[0]-p1[0])**2 + (p2[1]-p1[1]) ** 2 + (p2[2]-p1[2]) ** 2) ** 0.5
+
 
     deformed = nodes + disp
     theta, rho, z = cart2pol(x=deformed[:, 0], y=deformed[:, 1], lz=deformed[:, 2])
@@ -39,15 +42,23 @@ def computeOpened(disp=None, nodes=None, mesh_step=0.35):
     rho[np.argwhere(rho > max(rhoN))] = max(rhoN)
     readedPoints1 = np.array(pol2cart(theta=theta, rho=rho, lz=z), dtype='float64').T
     readedPoints1[:, -1] = 0
-    tri = spatial.Delaunay(nodes[:, :-1])
-    init_square = 0
-    for t in tri.simplices:
-        init_square += compute_square(nodes[t[0], :], nodes[t[1], :], nodes[t[2], :])
-    del t
+    #tri = spatial.Delaunay(nodes[:, :-1])
+    #init_square = 0
+    #for t in tri.simplices:
+    #    init_square += compute_square(nodes[t[0], :], nodes[t[1], :], nodes[t[2], :])
+    #del t
+    tri = spatial.Delaunay(readedPoints1[:,:-1])
     def_square = 0
     for t in tri.simplices:
-        def_square += compute_square(readedPoints1[t[0], :], readedPoints1[t[1], :], readedPoints1[t[2], :])
-
+        if max(np.diff(
+                [
+                    diff(readedPoints1[t[0], :], readedPoints1[t[1], :]),
+                    diff(readedPoints1[t[0], :], readedPoints1[t[2], :]),
+                    diff(readedPoints1[t[1], :], readedPoints1[t[2], :])
+                ]
+        )) < 2*mesh_step:
+            def_square += compute_square(readedPoints1[t[0], :], readedPoints1[t[1], :], readedPoints1[t[2], :])
+#    shape = alphashape(readedPoints1[:, :-1], alpha=1)
     # import matplotlib.pyplot as plt
     # plt.triplot(nodes[:, 0], nodes[:, 1], tri.simplices)
     # plt.plot(nodes[:, 0], nodes[:, 1], 'o')
@@ -66,6 +77,7 @@ def computeOpened(disp=None, nodes=None, mesh_step=0.35):
     # log_message("init_square %.6f - def_square %.6f = %.6f" % (init_square, def_square, init_square - def_square))
     # del readedPoints1, nodes
 
+ #   return np.min((def_square, shape.area))
     return def_square
 
 def computeClosed(disp1=None, disp2=None, disp3=None, nodes1=None, nodes2=None, nodes3=None, mesh_step=None):
@@ -98,7 +110,7 @@ def computeClosed(disp1=None, disp2=None, disp3=None, nodes1=None, nodes2=None, 
     ashp1 = alphashape(deformed1[:, :-1], alpha=1)
     deformed2 = fit_leaf(np.dot(nodes2 + disp2, rotMatrixMinus))
     ashp2 = alphashape(deformed2[:, :-1], alpha=1)
-    deformed3 = fit_leaf(np.dot(nodes2 + disp2, rotMatrixPlus))
+    deformed3 = fit_leaf(np.dot(nodes3 + disp3, rotMatrixPlus))
     ashp3 = alphashape(deformed3[:, :-1], alpha=1)
 
     # import matplotlib.pyplot as plt

@@ -53,16 +53,10 @@ class MultiStreamHandler:
 
 
 def setup_logger(folder_path: str, log_file_name: str = 'terminal_log.txt') -> logging.Logger:
-    """
-    Sets up a logger to capture verbose output, writing to both a log file and the console.
-
-    Args:
-        folder_path (str): The directory path to save the log file.
-        log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
-
-    Returns:
-        logging.Logger: Configured logger for capturing terminal output.
-    """
+    #Sets up a logger to capture verbose output, writing to both a log file and the console.
+    #Args: folder_path (str): The directory path to save the log file.
+    #log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
+    # Returns: logging.Logger: Configured logger for capturing terminal output.  """ 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
@@ -535,12 +529,12 @@ def save_object(obj, filepath, filename):
 if __name__ == "__main__":
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
-    set_mesh_step(0.5)
+    set_mesh_step(0.4)
     set_valve_position('ao') # can be 'mitr'
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_contact'
     set_dead_objects(0)
-    pop_size = 30
+    pop_size = 90
     offsprings = 10
     crossover_chance = 0.9
     mutation_chance = 0.3
@@ -565,7 +559,7 @@ if __name__ == "__main__":
     elif problem_name.lower() == 'leaflet_contact':
         set_base_name('Aortal_test')
         set_s_lim(3.23) # Formlabs elastic 50A
-        set_cpus(14)
+        set_cpus(10)
         typeof = 'Contact'
     else:
         typeof = problem_name
@@ -617,7 +611,7 @@ if __name__ == "__main__":
         parameters = {
             'HGT': (13, 15),
             'Lstr': (0, 1),
-            'THK': (0.15, 0.6),
+            'THK': (0.25, 0.6),
             'ANG': (-10, 10),
             'CVT': (0.1, 0.8),
             'LAS': (0.2, 1.5)

@@ -120,6 +120,13 @@ def createGeometry(HGT=10, Lstr=0, SEC=119, DIA=13, THK=0.5, ANG=0, Lift=0, CVT=
         (tX, tY, tZ) = pol2cart(thetaRef, fitRho, heightRef)
         arc = np.array(interparc(60, tX, tY, tZ, key='pchip'), dtype='float64')
 
+    t_ang, t_rad, t_z = cart2pol(arc[0], arc[1], arc[2])
+    for l_iter in np.arange(0, len(t_rad)):
+        if t_rad[l_iter] > RAD:
+            t_rad[l_iter] = RAD
+    arc[0], arc[1], arc[2] = pol2cart(t_ang, t_rad, t_z)
+    del t_ang, t_rad, t_z
+
     (tX, tY, tZ) = (arc[0], arc[1], arc[2])
     # нам нужно чтобы между точками сплайна было равное расстояние, поэтоу считаем какая длина у полученного отрезка
     # и делим на mesh_step. полученное интовое число - количество точек
