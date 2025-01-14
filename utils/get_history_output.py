@@ -1,4 +1,5 @@
 import os
+import subprocess
 from .global_variable import get_problem_name, get_cpus
 
 
@@ -20,8 +21,9 @@ def get_history_output_beam(pathName=None, odbFileName=None):
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
     consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput.py'
-    os.system(consoleCommand)
-
+    # os.system(consoleCommand)
+    with open('parse_stdout.log', 'w') as out, open('parse_stderr.log','w') as err:
+        process = subprocess.run(consoleCommand, shell=True, stdout=out, stderr=err)
 
 def get_history_output_single(pathName=None, odbFileName=None, cpus=-1):
     # prepare result folder
@@ -37,8 +39,9 @@ def get_history_output_single(pathName=None, odbFileName=None, cpus=-1):
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
     consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_4perField.py'
-    outputs_args = os.system(consoleCommand)
-
+    # outputs_args = os.system(consoleCommand)
+    with open('parse_stdout.log', 'w') as out, open('parse_stderr.log','w') as err:
+        process = subprocess.run(consoleCommand, shell=True, stdout=out, stderr=err)
 
 def get_history_output_contact(pathName=None, odbFileName=None, cpu=-1):
     # prepare result folder
@@ -56,8 +59,11 @@ def get_history_output_contact(pathName=None, odbFileName=None, cpu=-1):
         consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_ShellContact.py'
     else:
         consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_ShellContact_' + str(cpu) + '.py'
-    outputs_args = os.system(consoleCommand)
-    return outputs_args
+    # outputs_args = os.system(consoleCommand)
+    with open('parse_stdout.log', 'w') as out, open('parse_stderr.log','w') as err:
+        process = subprocess.run(consoleCommand, shell=True, stdout=out, stderr=err)
+    # return outputs_args
+
 
 
 def get_history_output(pathName=None, odbFileName=None, cpus=-1):

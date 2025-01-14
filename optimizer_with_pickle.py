@@ -1,7 +1,7 @@
 import gc
 import os
 import pickle
-import joblib
+import seaborn as sns
 import sys
 import datetime
 import logging
@@ -529,15 +529,18 @@ def load_state(filepath='./', filename='checkpoint.pkl'):
         return pickle.load(f)
 
 # callback class for saving
-class SaveCallback(Callback):
-    def __init__(self, filename='./utils/logs/checkpoint.pkl', interval=10):
+class CustomCallback(Callback):
+    def __init__(self, objectives=['a','b'], folder_path='./utils/logs/', interval_backup=10, interval_picture=2):
         print('Callback inited')
         super().__init__()
-        self.filename = filename
-        self.interval = interval
+        self.objectives = objectives
+        self.folder_path = folder_path
+        self.interval_backup = interval_backup
+        self.interval_picture = interval_picture
+        self.min_values = []
 
     def save_state(self, algorithm):
-        with open(self.filename, 'wb') as outp:
+        with open(os.path.join(self.folder_path,f'checkpoint_{algorithm.n_gen:03d}.pkl'), 'wb') as outp:
             state = {
                 "X": algorithm.pop.get("X"),
                 "F": algorithm.pop.get("F"),
@@ -549,11 +552,44 @@ class SaveCallback(Callback):
             }
             # joblib.dump(state, self.filename)
             pickle.dump(state, outp)
-            print(f'State saved. {algorithm.n_gen}')
+            print(f'State saved. {int(algorithm.n_gen):03d}')
+
+
+    def plot_convergence(self, algorithm):
+        # Получаем все значения целевых функций в текущей популяции
+        # Предполагается, что F - это массив значений целевых функций для каждого индивида
+        objectives = [ind.F for ind in algorithm.pop]
+        # Преобразуем в DataFrame для удобства обработки
+        objectives_df = pd.DataFrame(objectives, columns=[f'objective{i + 1}' for i in range(len(objectives[0]))])
+        # Находим минимальные значения по каждой целевой функции
+        min_objectives = objectives_df.min()
+        # Находим минимальное значение среди всех целевых функций
+        overall_min = min_objectives.min()
+        # Добавляем текущую генерацию и минимальное значение в историю
+        self.min_values.append((algorithm.n_gen, overall_min))
+        num_objectives = len(min_objectives)
+        # Построение графика с использованием Seaborn
+        sns.set(style="whitegrid")
+        fig, axes = plt.subplots(1, num_objectives, figsize=(15, 5), sharey=False)
+        if num_objectives == 1:
+            axes = [axes]
+        for idx, obj_col in enumerate(self.objectives):
+            gens, vals = zip(*self.min_values)
+            sns.lineplot(x=gens, y=vals, ax=axes[idx],
+                         marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col}")
+            axes[idx].set_title(f"Convergence of ({obj_col})")
+            axes[idx].set_xlabel("Generation")
+        # Сохранение графика с указанием текущей генерации
+        # plt.savefig(os.path.join(self.folder_path, f'intime_convergence_gen_{algorithm.n_gen}.png'))
+        plt.savefig(os.path.join(self.folder_path, f'intime_convergence.png'))
+        plt.close()
+        # time.sleep(2)
 
     def notify(self, algorithm):
-        if algorithm.n_gen % self.interval == 0:
+        if algorithm.n_gen % self.interval_backup == 0:
             self.save_state(algorithm)
+        if algorithm.n_gen % self.interval_picture == 0:
+            self.plot_convergence(algorithm)
 
 if __name__ == "__main__":
     basic_stdout = sys.stdout
@@ -564,8 +600,8 @@ if __name__ == "__main__":
     problem_name = 'leaflet_contact'
     # problem_name = 'test'
     set_dead_objects(0)
-    pop_size = 1
-    offsprings = 1
+    pop_size = 90
+    offsprings = 10
     crossover_chance = 0.9
     mutation_chance = 0.3
     set_problem_name(problem_name)
@@ -574,7 +610,16 @@ if __name__ == "__main__":
     
     percent = 0  # synthetic % of lost results
 
-    restore_state = True
+    restore_state = False
+
+    # folder to store results
+    if not restore_state:
+        basic_folder_path = create_results_folder(base_folder='results')
+    else:
+        basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', '007_14_01_2025')
+        last_gen = 10
+
+    print(f"folder path > {basic_folder_path}")
 
 
     if problem_name.lower() == 'test':
@@ -592,7 +637,7 @@ if __name__ == "__main__":
     elif problem_name.lower() == 'leaflet_contact':
         set_base_name('Mitral_test')
         set_s_lim(3.23) # Formlabs elastic 50A
-        set_cpus(8)
+        set_cpus(3) # 3 cpu cores shows better results then 8 cores. 260sec vs 531sec
         typeof = 'Contact'
     else:
         typeof = problem_name
@@ -601,19 +646,9 @@ if __name__ == "__main__":
     for file in glob('./*.rpy*'):
         os.remove(file)
 
-    # folder to store results
-    if not restore_state:
-        basic_folder_path = create_results_folder(base_folder='results')
-    else:
-        basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', '007_14_01_2025')
-  
-    print(f"folder path > {basic_folder_path}")
-   
-    save_callback = SaveCallback(filename=os.path.join(basic_folder_path, 'checkpoint.pkl'), interval=2)
-    
     # logging
     logger = setup_logger(basic_folder_path)
-    # basic_folder_path = './' + basic_folder_path 
+
     start_time = time.time()
     logger.info("Starting optimization...")
 
@@ -671,6 +706,14 @@ if __name__ == "__main__":
     # problem initialization
     problem = Problem(parameters, objectives, constraints)
 
+    # callback initialisation
+    save_callback = CustomCallback(
+        objectives=objectives,
+        folder_path=basic_folder_path,
+        interval_backup=10,
+        interval_picture=1
+    )
+
     # algorithm initialization
     algorithm_params = {
         "pop_size": pop_size,
@@ -689,7 +732,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 5,
-        "n_max_gen": 3,
+        "n_max_gen": 2000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -697,7 +740,7 @@ if __name__ == "__main__":
 
     if restore_state:
         try:
-            state = load_state(filepath=basic_folder_path)
+            state = load_state(filepath=basic_folder_path, filename=f'checkpoint_{last_gen:03d}.pkl')
             algorithm.n_gen = state["n_gen"]
             for key, value in state["algorithm_state"].items():
                 setattr(algorithm, key, value)
