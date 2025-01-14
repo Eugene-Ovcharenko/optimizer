@@ -343,15 +343,27 @@ def write_inp_contact(fileName=None, Nodes=None, Elements=None, BCfix=None, THC=
         fileID.write('*Elset, elset=_ElSet_%d_SPOS, internal, instance=%s-%d, generate\n' % (i, partName, i))
         fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
         if get_direction().lower() == 'direct':
-            fileID.write('*Surface, type=ELEMENT, name=ElSet_Inflow_%d\n' % (i))
-            fileID.write('\t_ElSet_%d_SNEG, SNEG\n' % (i))
-            fileID.write('*Surface, type=ELEMENT, name=ElSet_Outflow_%d\n' % (i))
-            fileID.write('\t_ElSet_%d_SPOS, SPOS\n' % (i))
+            if PressType == 'ao':
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Inflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SNEG, SNEG\n' % (i))
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Outflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SPOS, SPOS\n' % (i))
+            else:
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Outflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SNEG, SNEG\n' % (i))
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Inflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SPOS, SPOS\n' % (i))
         else:
-            fileID.write('*Surface, type=ELEMENT, name=ElSet_Outflow_%d\n' % (i))
-            fileID.write('\t_ElSet_%d_SNEG, SNEG\n' % (i))
-            fileID.write('*Surface, type=ELEMENT, name=ElSet_Inflow_%d\n' % (i))
-            fileID.write('\t_ElSet_%d_SPOS, SPOS\n' % (i))
+            if PressType == 'ao':
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Outflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SNEG, SNEG\n' % (i))
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Inflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SPOS, SPOS\n' % (i))
+            else:
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Inflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SNEG, SNEG\n' % (i))
+                fileID.write('*Surface, type=ELEMENT, name=ElSet_Outflow_%d\n' % (i))
+                fileID.write('\t_ElSet_%d_SPOS, SPOS\n' % (i))
     for i in range(1, 4):
         fileID.write('*Nset, nset=OutputNodes_%d, instance=%s-%d, generate\n' % (i, partName, i))
         fileID.write('	1,	%d,	1\n' % (len(Nodes)))

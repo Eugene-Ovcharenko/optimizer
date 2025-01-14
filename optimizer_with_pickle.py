@@ -1,5 +1,7 @@
 import gc
 import os
+import pickle
+import joblib
 import sys
 import datetime
 import logging
@@ -8,6 +10,7 @@ import numpy as np
 import pandas as pd
 import openpyxl
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.callback import Callback
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
 from pymoo.decomposition.asf import ASF
@@ -18,14 +21,13 @@ from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 from utils.global_variable import get_problem_name, get_percent, get_cpus
 from utils.visualize import *
-from utils.problem import init_procedure, Procedure
+from utils.problem_no_xlsx import init_procedure, Procedure
 import time
 from random import random
 from glob2 import glob
 from utils.global_variable import (set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id,
                                    set_dead_objects, set_mesh_step, set_valve_position)
-import pickle
-
+import pathlib
 
 class MultiStreamHandler:
     """
@@ -192,33 +194,34 @@ class Problem(ElementwiseProblem):
                 "VMS-Smax": constraint_values['VMS-Smax']
             }
         elif problem_name == 'test':
-            curr_rand = random() * 100
-            if curr_rand > get_percent():
-                result = problem.evaluate(parameters)
-                objective_values = result[0]
-                objectives_dict = {
-                    "objective1": objective_values[0],
-                    "objective2": objective_values[1]
-                }
-                constraint_values = result[1]
-                constraints_dict = {
-                    "constraint1": constraint_values[0],
-                    "constraint2": constraint_values[1],
-                    "constraint3": constraint_values[2],
-                    "constraint4": constraint_values[3]
-                }
-            else:
-                objectives_dict = {
-                    "objective1": 1000,
-                    "objective2": 1000
-                }
-                constraints_dict = {
-                    "constraint1": 100,
-                    "constraint2": 100,
-                    "constraint3": 100,
-                    "constraint4": 100
-                }
-                print('value losted')
+            # curr_rand = random() * 100
+            # if curr_rand > get_percent():
+
+            result = Procedure.run_procedure(self=self.problem, params=parameters)
+            objective_values = result['objectives']
+            objectives_dict = {
+                "objective1": objective_values['objective1'],
+                "objective2": objective_values['objective2']
+            }
+            constraint_values = result['constraints']
+            constraints_dict = {
+                "constraint1": constraint_values["constraint1"],
+                "constraint2": constraint_values["constraint2"],
+                "constraint3": constraint_values["constraint3"],
+                "constraint4": constraint_values["constraint4"]
+            }
+            # else:
+            #     objectives_dict = {
+            #         "objective1": 1000,
+            #         "objective2": 1000
+            #     }
+            #     constraints_dict = {
+            #         "constraint1": 100,
+            #         "constraint2": 100,
+            #         "constraint3": 100,
+            #         "constraint4": 100
+            #     }
+            #     print('value losted')
 
         out["F"] = np.array([result['objectives'][name] for name in self.obj_names])
         out["G"] = np.array([result['constraints'][name] for name in self.constr_names])
@@ -388,7 +391,7 @@ def create_results_folder(
     formatted_date = current_time.strftime('%d_%m_%Y')
 
     subfolder_name = f"{subfolder_number:03}_{formatted_date}"
-    basic_folder_path = os.path.join(base_folder, subfolder_name)
+    basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), base_folder, subfolder_name)
 
     if not os.path.exists(basic_folder_path):
         os.makedirs(basic_folder_path)
@@ -455,7 +458,7 @@ def save_optimization_summary(
     Returns:
         None: The function saves the summary to an Excel file in the 'results' folder.
     """
-    base_folder = folder_path.split(os.path.sep)[0]
+    base_folder = '/'.join(folder_path.split(os.path.sep)[:-1])
     summary_file = os.path.join(base_folder, 'optimization_summary.xlsx')
 
     if os.path.exists(summary_file):
@@ -520,11 +523,37 @@ def save_optimization_summary(
     worksheet.append(new_row)
     workbook.save(summary_file)
 
+def load_state(filepath='./', filename='checkpoint.pkl'):
+    # return joblib.load(os.path.join(filepath,filename))
+    with open(os.path.join(filepath,filename), "rb") as f:
+        return pickle.load(f)
 
-def save_object(obj, filepath, filename):
-    with open(os.path.join(folder_path, filename), 'wb') as outp:  # Overwrites any existing file.
-        pickle.dump(obj, outp, pickle.HIGHEST_PROTOCOL)
+# callback class for saving
+class SaveCallback(Callback):
+    def __init__(self, filename='./utils/logs/checkpoint.pkl', interval=10):
+        print('Callback inited')
+        super().__init__()
+        self.filename = filename
+        self.interval = interval
 
+    def save_state(self, algorithm):
+        with open(self.filename, 'wb') as outp:
+            state = {
+                "X": algorithm.pop.get("X"),
+                "F": algorithm.pop.get("F"),
+                "n_gen": algorithm.n_gen,
+                "algorithm_state": {
+                    key: value for key, value in algorithm.__dict__.items()
+                    if not isinstance(value, (openpyxl.Workbook, openpyxl.worksheet.worksheet.Worksheet))
+                }
+            }
+            # joblib.dump(state, self.filename)
+            pickle.dump(state, outp)
+            print(f'State saved. {algorithm.n_gen}')
+
+    def notify(self, algorithm):
+        if algorithm.n_gen % self.interval == 0:
+            self.save_state(algorithm)
 
 if __name__ == "__main__":
     basic_stdout = sys.stdout
@@ -533,16 +562,20 @@ if __name__ == "__main__":
     set_valve_position('mitr') # can be 'mitr'
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_contact'
+    # problem_name = 'test'
     set_dead_objects(0)
-    pop_size = 90 
-    offsprings = 10
+    pop_size = 1
+    offsprings = 1
     crossover_chance = 0.9
     mutation_chance = 0.3
     set_problem_name(problem_name)
     crossover_eta = 50
     mutation_eta = 100
-
+    
     percent = 0  # synthetic % of lost results
+
+    restore_state = True
+
 
     if problem_name.lower() == 'test':
         typeof = f'Both loss {percent}%'
@@ -559,7 +592,7 @@ if __name__ == "__main__":
     elif problem_name.lower() == 'leaflet_contact':
         set_base_name('Mitral_test')
         set_s_lim(3.23) # Formlabs elastic 50A
-        set_cpus(10)
+        set_cpus(8)
         typeof = 'Contact'
     else:
         typeof = problem_name
@@ -569,9 +602,15 @@ if __name__ == "__main__":
         os.remove(file)
 
     # folder to store results
-    basic_folder_path = create_results_folder(base_folder='results')
+    if not restore_state:
+        basic_folder_path = create_results_folder(base_folder='results')
+    else:
+        basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', '007_14_01_2025')
+  
     print(f"folder path > {basic_folder_path}")
    
+    save_callback = SaveCallback(filename=os.path.join(basic_folder_path, 'checkpoint.pkl'), interval=2)
+    
     # logging
     logger = setup_logger(basic_folder_path)
     # basic_folder_path = './' + basic_folder_path 
@@ -650,11 +689,22 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 5,
-        "n_max_gen": 200,
+        "n_max_gen": 3,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
     print_termination_params(termination_params)
+
+    if restore_state:
+        try:
+            state = load_state(filepath=basic_folder_path)
+            algorithm.n_gen = state["n_gen"]
+            for key, value in state["algorithm_state"].items():
+                setattr(algorithm, key, value)
+            print(f'State was loaded. Current gen is {algorithm.n_gen}')
+        except FileNotFoundError:
+            print(f'Pickle file not found!')
+            sys.exit(1)
 
     # run optimization
     res = minimize(problem,
@@ -662,6 +712,7 @@ if __name__ == "__main__":
                    termination,
                    seed=1,
                    save_history=True,
+                   callback=save_callback,
                    verbose=True)
     elapsed_time = time.time() - start_time
 

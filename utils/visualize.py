@@ -224,7 +224,7 @@ def plot_objective_convergence(
         folder_path: str
 ) -> None:
     """
-    Plots convergence of objectives over generations, with optional modes to visualize  best objective values.
+    Plots convergence of objectives over generations, with optional modes to visualize best objective values.
 
     Args:
         history_df (pd.DataFrame): DataFrame containing optimization history.
