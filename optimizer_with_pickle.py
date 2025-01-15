@@ -560,24 +560,28 @@ class CustomCallback(Callback):
         # Предполагается, что F - это массив значений целевых функций для каждого индивида
         objectives = [ind.F for ind in algorithm.pop]
         # Преобразуем в DataFrame для удобства обработки
-        objectives_df = pd.DataFrame(objectives, columns=[f'objective{i + 1}' for i in range(len(objectives[0]))])
+        objectives_df = pd.DataFrame(objectives, columns=self.objectives)
         # Находим минимальные значения по каждой целевой функции
         min_objectives = objectives_df.min()
         # Находим минимальное значение среди всех целевых функций
         overall_min = min_objectives.min()
         # Добавляем текущую генерацию и минимальное значение в историю
-        self.min_values.append((algorithm.n_gen, overall_min))
+        self.min_values.append((algorithm.n_gen, min_objectives))
         num_objectives = len(min_objectives)
         # Построение графика с использованием Seaborn
         sns.set(style="whitegrid")
         fig, axes = plt.subplots(1, num_objectives, figsize=(15, 5), sharey=False)
         if num_objectives == 1:
             axes = [axes]
+        gens, vals = zip(*self.min_values)
         for idx, obj_col in enumerate(self.objectives):
-            gens, vals = zip(*self.min_values)
-            sns.lineplot(x=gens, y=vals, ax=axes[idx],
+            y_values = [val[obj_col] for val in vals]
+            sns.lineplot(x=gens, y=y_values, ax=axes[idx],
                          marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col}")
-            axes[idx].set_title(f"Convergence of ({obj_col})")
+            if len(y_values) > 2:
+                axes[idx].set_title(f"Convergence of ({obj_col}) | Δ={abs(y_values[-2]-y_values[-1]):2.2e}")
+            else:
+                axes[idx].set_title(f"Convergence of ({obj_col})")
             axes[idx].set_xlabel("Generation")
         # Сохранение графика с указанием текущей генерации
         # plt.savefig(os.path.join(self.folder_path, f'intime_convergence_gen_{algorithm.n_gen}.png'))
