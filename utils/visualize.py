@@ -224,7 +224,7 @@ def plot_objective_convergence(
         folder_path: str
 ) -> None:
     """
-    Plots convergence of objectives over generations, with optional modes to visualize best objective values.
+    Plots convergence of objectives over generations, with optional modes to visualize  best objective values.
 
     Args:
         history_df (pd.DataFrame): DataFrame containing optimization history.
@@ -414,7 +414,7 @@ def plot_best_objectives(
     approx_ideal = F.min(axis=0)
     approx_nadir = F.max(axis=0)
     nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
-    decomp = ASF()
+    decomp: ASF = ASF()
     best_index = decomp.do(nF.to_numpy(), 1 / np.array(weights)).argmin()
 
     subplot_count = (num_objectives * (num_objectives - 1)) // 2  # Unique pairs of objectives
@@ -452,6 +452,114 @@ def plot_best_objectives(
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, 'objective_space_subplots.png'))
     plt.close()
+
+
+def plot_best_objectives_history(
+        history: pd.DataFrame,
+        objectives: list[str],
+        folder_path: str,
+        best_geoms_xlsx_name: str,
+        weights: list[float] or str = 'equal'
+) -> None:
+    """
+    Finds the best trade-off in a multi-objective optimization based on ASF and creates subplots
+    for each unique pair of objectives to visualize the best solutions.
+
+    Args:
+        F (pd.DataFrame): DataFrame containing the objective values.
+        weights (list[float] or str): A list of weights to assign to each objective, or 'equal' for equal weights. Defaults to 'equal'.
+        folder_path (str): The directory path to save the plots.
+
+    Returns:
+        None: The function plots and saves scatter plots with highlighted best solutions.
+    """
+    num_objectives = len(objectives)
+
+    if weights == 'equal':  # Determine weights based on the input
+        weights = [1 / num_objectives] * num_objectives
+    elif isinstance(weights, list) and len(weights) == num_objectives:
+        if not np.isclose(sum(weights), 1):
+            raise ValueError("List of weights must sum to 1.")
+    else:
+        raise ValueError("Weights must be either 'equal' or a list of correct length.")
+
+    best_rows = []
+    for gen_ind in np.unique(history['generation']):
+        os.makedirs(os.path.join(folder_path, 'best_over_gen'), exist_ok=True)
+        curr_generation = history[history['generation'] == gen_ind]
+        F = curr_generation[objectives]
+        # Normalize the objective values for ASF
+        approx_ideal = F.min(axis=0)
+        approx_nadir = F.max(axis=0)
+        nF = (F - approx_ideal) / (approx_nadir - approx_ideal)
+        decomp: ASF = ASF()
+        best_index = decomp.do(nF.to_numpy(), 1 / np.array(weights)).argmin()
+
+        subplot_count = (num_objectives * (num_objectives - 1)) // 2  # Unique pairs of objectives
+        fig, axes = plt.subplots(1, subplot_count, figsize=(5 * subplot_count, 5))
+        plot_idx = 0
+
+        for i in range(num_objectives):
+            for j in range(i + 1, num_objectives):  # Only create unique pairs
+                ax = axes[plot_idx] if subplot_count > 1 else axes
+                sns.scatterplot(
+                    data=F,
+                    x=F.columns[i],
+                    y=F.columns[j],
+                    label="All points",
+                    s=30,
+                    ax=ax,
+                    color='blue',
+                    alpha=0.6
+                )
+                sns.scatterplot(
+                    data=F.iloc[[best_index]],
+                    x=F.columns[i],
+                    y=F.columns[j],
+                    label="Best point",
+                    s=200,
+                    marker="x",
+                    color="red",
+                    ax=ax
+                )
+                ax.set_title(f"Objective ({F.columns[i]}) vs Objective ({F.columns[j]})")
+                ax.set_xlabel(F.columns[i])
+                ax.set_ylabel(F.columns[j])
+                plot_idx += 1
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(folder_path, 'best_over_gen', f'objective_space_subplots_gen-{gen_ind:03d}.png'))
+        plt.close()
+
+        curr_best_F = curr_generation.iloc[[best_index]]
+        LMN_op = 1 - curr_best_F[objectives[0]].values[0]
+        LMN_cl = [0 if x < 0 else 1 - x for x in curr_best_F[objectives[1]]][0]
+        Smax = 1 - ((3.23 + curr_best_F[objectives[2]]) / 3.23).values[0]
+        HELI = [1 + x if x < 0 else 1 if x == 0 else 0.000001 if x > 1 else 1 - x for x in curr_best_F[objectives[-1]]][0]
+        I_avg_geom = np.power(LMN_op * LMN_cl * Smax * HELI, 1 / 4)
+        I_avg_4 = (LMN_op + LMN_cl + Smax + HELI)/4
+        I_mult = LMN_op * LMN_cl * Smax * HELI
+        try:
+            I_avg_harm = 4 / (1 / LMN_op + 1 / LMN_cl + 1 / Smax + 1 / HELI)
+        except:
+            I_avg_harm = 0
+        I_avg_log = np.exp((np.log(LMN_op)+np.log(LMN_cl)+np.log(Smax)+np.log(HELI))/4)
+        base_row = curr_generation.iloc[best_index].to_dict()
+        base_row.update({
+            'I_avg_geom': I_avg_geom,
+            'I_avg/4': I_avg_4,
+            'I_mult': I_mult,
+            'I_avg_harm': I_avg_harm,
+            'I_avg_log': I_avg_log
+        })
+        # Append the row for this generation to the list.
+        best_rows.append(base_row)
+
+    # Create a DataFrame from the accumulated best rows.
+    best_df = pd.DataFrame(best_rows)
+
+    # Save the DataFrame to an Excel file.
+    best_df.to_excel(os.path.join(folder_path, best_geoms_xlsx_name), index=False)
 
 
 def load_optimization_results(

@@ -52,18 +52,18 @@ class MultiStreamHandler:
                     logging.error(f"Error while flushing stream: {e}")
 
 
-def setup_logger(basic_folder_path: str, log_file_name: str = 'terminal_log.txt') -> logging.Logger:
+def setup_logger(folder_path: str, log_file_name: str = 'terminal_log.txt') -> logging.Logger:
     #Sets up a logger to capture verbose output, writing to both a log file and the console.
-    #Args: basic_folder_path (str): The directory path to save the log file.
+    #Args: folder_path (str): The directory path to save the log file.
     #log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
     # Returns: logging.Logger: Configured logger for capturing terminal output.  """ 
-    if not os.path.exists(basic_folder_path):
-        os.makedirs(basic_folder_path)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
     logger = logging.getLogger('multi_stream_logger')
     logger.setLevel(logging.INFO)
 
-    file_handler = logging.FileHandler(os.path.join(basic_folder_path, log_file_name))
+    file_handler = logging.FileHandler(os.path.join(folder_path, log_file_name))
     file_handler.setLevel(logging.INFO)
 
     console_handler = logging.StreamHandler()  # Outputs to the console
@@ -388,14 +388,14 @@ def create_results_folder(
     formatted_date = current_time.strftime('%d_%m_%Y')
 
     subfolder_name = f"{subfolder_number:03}_{formatted_date}"
-    basic_folder_path = os.path.join(base_folder, subfolder_name)
+    folder_path = os.path.join(base_folder, subfolder_name)
 
-    if not os.path.exists(basic_folder_path):
-        os.makedirs(basic_folder_path)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-    print(f"Created folder: {basic_folder_path}")
+    print(f"Created folder: {folder_path}")
 
-    return basic_folder_path
+    return folder_path
 
 
 def find_best_result(
@@ -534,7 +534,7 @@ if __name__ == "__main__":
     # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
     problem_name = 'leaflet_contact'
     set_dead_objects(0)
-    pop_size = 90 
+    pop_size = 90
     offsprings = 10
     crossover_chance = 0.9
     mutation_chance = 0.3
@@ -559,7 +559,7 @@ if __name__ == "__main__":
     elif problem_name.lower() == 'leaflet_contact':
         set_base_name('Mitral_test')
         set_s_lim(3.23) # Formlabs elastic 50A
-        set_cpus(10)
+        set_cpus(4)
         typeof = 'Contact'
     else:
         typeof = problem_name
@@ -569,12 +569,10 @@ if __name__ == "__main__":
         os.remove(file)
 
     # folder to store results
-    basic_folder_path = create_results_folder(base_folder='results')
-    print(f"folder path > {basic_folder_path}")
-   
+    folder_path = create_results_folder(base_folder='results')
+
     # logging
-    logger = setup_logger(basic_folder_path)
-    # basic_folder_path = './' + basic_folder_path 
+    logger = setup_logger(folder_path)
     start_time = time.time()
     logger.info("Starting optimization...")
 
@@ -650,7 +648,7 @@ if __name__ == "__main__":
         "cvtol": 1e-6,
         "ftol": 0.0025,
         "period": 5,
-        "n_max_gen": 200,
+        "n_max_gen": 1000,
         "n_max_evals": 100000
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
@@ -660,21 +658,22 @@ if __name__ == "__main__":
     res = minimize(problem,
                    algorithm,
                    termination,
-                   seed=1,
+                   seed=2,
                    save_history=True,
                    verbose=True)
     elapsed_time = time.time() - start_time
 
+    # save_object(res, folder_path, 'results_object.pkl')
 
     try:
         # result storage
-        history_df, X, F, G, CV, pop = extract_optimization_results(res, problem, basic_folder_path)
-        history_df.to_csv(os.path.join(basic_folder_path, 'history.csv'))
-        X.to_csv(os.path.join(basic_folder_path, 'X.csv'))
-        F.to_csv(os.path.join(basic_folder_path, 'F.csv'))
-        G.to_csv(os.path.join(basic_folder_path, 'G.csv'))
-        CV.to_csv(os.path.join(basic_folder_path, 'CV.csv'))
-        pop.to_csv(os.path.join(basic_folder_path, 'pop.csv'))
+        history_df, X, F, G, CV, pop = extract_optimization_results(res, problem, folder_path)
+        history_df.to_csv(os.path.join(folder_path, 'history.csv'))
+        X.to_csv(os.path.join(folder_path, 'X.csv'))
+        F.to_csv(os.path.join(folder_path, 'F.csv'))
+        G.to_csv(os.path.join(folder_path, 'G.csv'))
+        CV.to_csv(os.path.join(folder_path, 'CV.csv'))
+        pop.to_csv(os.path.join(folder_path, 'pop.csv'))
 
         #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
 
@@ -691,7 +690,7 @@ if __name__ == "__main__":
         # upload result to integrate table
         save_optimization_summary(
             typeof,
-            basic_folder_path,
+            folder_path,
             best_index,
             elapsed_time,
             F,
@@ -712,11 +711,11 @@ if __name__ == "__main__":
         'CV': 'CV.csv',
         'pop': 'pop.csv'
     }
-    optimization_results = load_optimization_results(basic_folder_path, csv_files)
+    optimization_results = load_optimization_results(folder_path, csv_files)
 
     # Best trade-off between objectives using ASF
     try:
-        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=basic_folder_path)
+        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
         print(colored("Best trade-off plot created successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
@@ -726,7 +725,7 @@ if __name__ == "__main__":
         plot_objectives_vs_parameters(
             X=optimization_results['X'],
             F=optimization_results['F'],
-            folder_path=basic_folder_path
+            folder_path=folder_path
         )
         print(colored("Objectives vs Parameters plotted successfully.", "green"))
     except Exception as e:
@@ -737,7 +736,7 @@ if __name__ == "__main__":
         plot_constrains_vs_parameters(
             X=optimization_results['X'],
             G=optimization_results['G'],
-            folder_path=basic_folder_path
+            folder_path=folder_path
         )
         print(colored("Constrains vs Parameters plotted successfully.", "green"))
     except Exception as e:
@@ -746,7 +745,7 @@ if __name__ == "__main__":
     # Convergence for objectives
     try:
         plot_objective_convergence(optimization_results['history'], objectives,
-                                   basic_folder_path)
+                                   folder_path)
         print(colored("Objective Convergence plotted successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
@@ -758,7 +757,7 @@ if __name__ == "__main__":
             G=optimization_results['G'],
             F=optimization_results['F'],
             objectives=objectives,
-            folder_path=basic_folder_path
+            folder_path=folder_path
         )
         print(colored("Parallel Coordinates plotted successfully.", "green"))
     except Exception as e:
@@ -766,7 +765,7 @@ if __name__ == "__main__":
 
     # Convergence by Hypervolume
     try:
-        plot_convergence_by_hypervolume(optimization_results['history'], objectives, basic_folder_path)
+        plot_convergence_by_hypervolume(optimization_results['history'], objectives, folder_path)
         print(colored("Convergence by Hypervolume plotted successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
@@ -777,7 +776,7 @@ if __name__ == "__main__":
             optimization_results['history'],
             problem.param_names,
             problem.obj_names,
-            basic_folder_path
+            folder_path
         )
         print(colored("Parameters over generations plotted successfully.", "green"))
     except Exception as e:
@@ -790,7 +789,7 @@ if __name__ == "__main__":
             F=optimization_results['F'],
             objectives=problem.obj_names,
             weights='equal',
-            folder_path=basic_folder_path
+            folder_path=folder_path
         )
         print(colored("Best trade-off plot created successfully.", "green"))
     except Exception as e:

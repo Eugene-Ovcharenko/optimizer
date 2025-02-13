@@ -1,6 +1,5 @@
 from openpyxl import load_workbook
 import pandas as pd
-import json
 import numpy as np
 from glob2 import glob
 import datetime
@@ -460,7 +459,7 @@ class Procedure:
                     Lstr, ANG, CVT, LAS = params
                     HGT = 11
                     THK = 0.3
-                DIA = 29 - 2 * 1.5
+                DIA = 22.98
                 Lift = 0
                 EM = 1.88 # Formlabs elastic 50A
                 mesh_step = self.mesh_step
@@ -481,7 +480,7 @@ class Procedure:
                     sheet.append(
                         [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
-                         0, str(e), delta, datetime.datetime.now()])
+                         0, str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
                     self.wbLog.close()
                     del delta, sheet
@@ -522,7 +521,7 @@ class Procedure:
                     sheet.append(
                         [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
-                         0, str(e), delta, datetime.datetime.now()])
+                         0, str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
                     self.wbLog.close()
                     del delta, sheet, pcd
@@ -552,7 +551,7 @@ class Procedure:
                     sheet.append(
                         [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
-                         0, str(e), delta, datetime.datetime.now()])
+                         0, str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
                     self.wbLog.close()
                     del delta, sheet
@@ -571,7 +570,7 @@ class Procedure:
                         [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          frames,
-                         'Odb parse problem', delta, datetime.datetime.now()])
+                         'Odb parse problem', delta])
                     self.wbLog.save(self.outFileNameLog)
                     self.wbLog.close()
                     # purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
@@ -608,7 +607,7 @@ class Procedure:
                         sheet.append(
                             [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                              normal_behavior,
-                             0, str(e), delta, datetime.datetime.now()])
+                             0, str(e), delta])
                         self.wbLog.save(self.outFileNameLog)
                         self.wbLog.close()
                         del delta, sheet
@@ -627,7 +626,7 @@ class Procedure:
                             [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                              normal_behavior,
                              frames,
-                             'Odb parse problem', delta, datetime.datetime.now()])
+                             'Odb parse problem', delta])
                         self.wbLog.save(self.outFileNameLog)
                         self.wbLog.close()
                         # purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
@@ -652,7 +651,7 @@ class Procedure:
                         sheet.append(
                             [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                              normal_behavior,
-                             0, str(e), delta, datetime.datetime.now()])
+                             0, str(e), delta])
                         self.wbLog.save(self.outFileNameLog)
                         self.wbLog.close()
                         del delta, sheet
@@ -669,7 +668,7 @@ class Procedure:
                         [fileName, get_id(), HGT, Lstr, SEC, DIA, THK, ANG, Lift, CVT, LAS, EM, tangent_behavior,
                          normal_behavior,
                          frames,
-                         str(e), delta, datetime.datetime.now()])
+                         str(e), delta])
                     self.wbLog.save(self.outFileNameLog)
                     self.wbLog.close()
                     purgeFiles(pathToAbaqus + 'results/', partName, pathToAbaqus, jobName)
@@ -719,7 +718,7 @@ class Procedure:
 
         def run_pymoo(self, params) -> dict:
             problem = get_problem("welded_beam")
-            param_array = np.array(list(params))
+            param_array = np.array(list(params.values()))
             result = problem.evaluate(param_array)
             objective_values = result[0]
             objectives_dict = {
@@ -882,7 +881,7 @@ def init_procedure(param_array):
             colNamesGeoms = pd.DataFrame(
                 {'fileName': [], 'HGT': [], 'Lstr': [], 'SEC': [], 'DIA': [], 'THK': [],
                  'ANG': [], 'Lift': [], 'CVT': [], 'LAS': [], 'EM': [],
-                 'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': [], 'Timestamp': []})
+                 'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': []})
 
             writerGeom = pd.ExcelWriter(str(outFileNameGeom), engine='xlsxwriter')
             colNamesGeoms.to_excel(writerGeom, sheet_name='log', index=False)
@@ -966,7 +965,7 @@ def init_procedure(param_array):
             colNamesGeoms = pd.DataFrame(
                 {'fileName': [], 'ID':[], 'HGT': [], 'Lstr': [], 'SEC': [], 'DIA': [], 'THK': [],
                  'ANG': [], 'Lift': [], 'CVT': [], 'LAS': [], 'EM': [],
-                 'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': [], 'Timestamp': []})
+                 'Tangent behavior': [], 'Normal Behavior': [], 'Frames': [], 'Message': [], 'Exec time': []})
 
             writerGeom = pd.ExcelWriter(str(outFileNameGeom), engine='xlsxwriter')
             colNamesGeoms.to_excel(writerGeom, sheet_name='log', index=False)
@@ -992,8 +991,6 @@ def init_procedure(param_array):
                             outFileNameResults=outFileNameResult, outFileNameLog=outFileNameGeom,
                             sheet_short=sheet_short,
                             sheet_desc=sheet_desc)
-
-
 
         return problem
 
