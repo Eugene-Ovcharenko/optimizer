@@ -19,7 +19,7 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
-from utils.global_variable import get_problem_name, get_percent, get_cpus
+from utils.global_variable import get_problem_name, get_percent, get_cpus, get_mesh_step
 from utils.visualize import *
 from utils.problem_no_xlsx import init_procedure, Procedure
 import time
@@ -893,7 +893,28 @@ if __name__ == "__main__":
         print(colored("Best trade-off plot created successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
+
+    # Best leaflet - frame connection contour
+    try:
+        HGT, Lstr, THK, ANG, CVT, LAS = optimization_results['history'][parameters.keys()].iloc[best_index]
+        DIA = 29 - 2 * 1.5
+        Lift = 0
+        SEC = 119
+
+        from utils.createGeometry import createGeometry
+
+        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+            createGeometry(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=THK,
+                           ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=get_mesh_step())
+        os.makedirs('inps', exist_ok=True)
+        with open(f'{basic_folder_path}/fixed_bottom_{best_index}.txt', 'w') as writer:
+            for point in pointsHullLower.T:
+                writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+        print(colored("Best leaflet - frame connection contour created successfully.", "green"))
+    except Exception as e:
+        print(colored(f"Failed to create best leaflet - frame connection contour: {str(e)}", "red"))
     cleanup_logger(logger)
     del logger
     sys.stdout = basic_stdout
     sys.stderr = basic_stderr
+
