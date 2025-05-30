@@ -15,7 +15,7 @@ def _read_csv_data() -> list:
             if not row or row[0].startswith('#'):
                 continue
             strain, stress = map(float, row)
-            data.append((strain, stress))
+            data.append((stress,strain))
     return data
 
 

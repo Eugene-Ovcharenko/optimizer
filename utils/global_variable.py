@@ -103,7 +103,8 @@ params = Params(
     material_name='Change it! Material name',
     material_csv_path='no path',
     abq_tangent_behavior=1,
-    abq_normal_behavior=0.2
+    abq_normal_behavior=0.2,
+    global_path=''
 )
 
 
@@ -168,7 +169,7 @@ def set_s_lim(val: float):
     params.Slim = val
 
 
-def set_material_csv_path(val: float):
+def set_material_csv_path(val: str):
     params.material_csv_path = val
 
 

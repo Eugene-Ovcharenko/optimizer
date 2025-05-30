@@ -206,7 +206,7 @@ class Procedure:
             log_message(f"current ID is {get_id()}. current time is {str(datetime.datetime.now()).split('.')[0]}\n")
             try:
                 log_message(f"current ID is {get_id()}\n")
-                baseName = self.baseName + '_' + now
+                baseName = get_base_name() + '_' + now
                 reset_direction()
                 tt1 = datetime.datetime.now()
                 try:
@@ -215,15 +215,15 @@ class Procedure:
                     Lstr, ANG, CVT, LAS = params
                     HGT = 11
                     THK = 0.3
-                DIA = 29 - 2 * 1.5
-                Lift = 0
-                EM = 1.88  # Formlabs elastic 50A
+                DIA = get_DIA()
+                Lift = get_Lift()
+                EM = get_EM()  # Formlabs elastic 50A
                 mesh_step = self.mesh_step
-                tangent_behavior = 1
-                normal_behavior = 0.2
-                SEC = 119
-                Dens = 1.02e-9
-                MaterialName = 'FormLabs Elasctic 50A'
+                tangent_behavior = get_tangent_behavior()
+                normal_behavior = get_normal_behavior()
+                SEC = get_SEC()
+                Dens = get_density()
+                MaterialName = get_material_name()
                 PressType = get_valve_position()  # can be 'vent'
                 fileName = baseName + '.inp'
                 try:

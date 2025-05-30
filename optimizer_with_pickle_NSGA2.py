@@ -26,7 +26,7 @@ from utils.global_variable import *
 from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.visualize import *
 
-config_name = 'config_leaf_NSGA2'
+config_name = 'config_leaf_NSGA2_jValve1_0'
 
 class MultiStreamHandler:
     """
@@ -621,9 +621,10 @@ def main(cfg:DictConfig) -> None:
     set_mesh_step(float(cfg.problem_definition.mesh_step))
     set_valve_position(cfg.problem_definition.position)
     set_problem_name(cfg.problem_definition.problem_name)
-    set_base_name(cfg.problem_definition.problem_name)
+    set_base_name(cfg.problem_definition.name)
     set_s_lim(float(cfg.problem_definition.s_lim))
     set_global_path(str(pathlib.Path(__file__).parent.resolve()))
+    set_material_csv_path(str(cfg.problem_definition.material_csv_path))
 
     restore_state = False
 

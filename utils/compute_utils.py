@@ -121,7 +121,7 @@ def get_history_output_single(
     fid = open(reqFile, 'wt')
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
-    consoleCommand = 'abaqus cae noGUI=' + str(pathName) + 'odbHistoryOutput_4perField.py'
+    consoleCommand = 'abaqus cae noGUI=' + str(os.path.join(pathName,'abaqus_scripts/')) + 'odbHistoryOutput_4perField.py'
     outputs_args = os.system(consoleCommand)
 
 def get_history_output_contact(
@@ -165,7 +165,7 @@ def get_history_output_contact(
     fid = open(reqFile, 'wt')
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
-    consoleCommand = 'abaqus cae noGUI=' + str(os.path.join(pathName,'abaqus_scripts/')) + 'odbHistoryOutput_ShellContact.py'
+    consoleCommand = 'abaqus cae noGUI=' + str(os.path.join(pathName,'abaqus_scripts/')) + 'odbHistoryOutput_shell_contact.py'
     outputs_args = os.system(consoleCommand)
 
 def get_history_output(
