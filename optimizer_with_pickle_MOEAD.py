@@ -1,33 +1,39 @@
-import gc
-import os
-import pickle
-import seaborn as sns
 import sys
+import os
 import datetime
 import logging
+import pickle
+import time
 from typing import Tuple, Optional, List, Dict
-import numpy as np
+
 import pandas as pd
+from glob2 import glob
 import openpyxl
-from pymoo.algorithms.moo.nsga2 import NSGA2
+import pathlib
+
+import numpy as np
+from omegaconf import DictConfig
+import hydra
+import seaborn as sns
+
+from pymoo.algorithms.moo.moead import MOEAD
 from pymoo.core.callback import Callback
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
 from pymoo.decomposition.asf import ASF
+from pymoo.util.ref_dirs import get_reference_directions
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
-from utils.global_variable import get_problem_name, get_percent, get_cpus, get_mesh_step
+
+from utils.global_variable import *
+from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.visualize import *
-from utils.problem_no_xlsx import init_procedure, Procedure
-import time
-from random import random
-from glob2 import glob
-from utils.global_variable import (set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id,
-                                   set_dead_objects, set_mesh_step, set_valve_position)
-import pathlib
+
+config_name = 'config_leaf_MOEAD'
+
 
 class MultiStreamHandler:
     """
@@ -55,9 +61,9 @@ class MultiStreamHandler:
 
 
 def setup_logger(basic_folder_path: str, log_file_name: str = 'terminal_log.txt') -> logging.Logger:
-    #Sets up a logger to capture verbose output, writing to both a log file and the console.
-    #Args: basic_folder_path (str): The directory path to save the log file.
-    #log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
+    # Sets up a logger to capture verbose output, writing to both a log file and the console.
+    # Args: basic_folder_path (str): The directory path to save the log file.
+    # log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
     # Returns: logging.Logger: Configured logger for capturing terminal output.  """ 
     if not os.path.exists(basic_folder_path):
         os.makedirs(basic_folder_path)
@@ -145,61 +151,49 @@ class Problem(ElementwiseProblem):
         Returns:
             None: This function updates the `out` dictionary with the calculated objective and constraint values.
         """
+
+        def eval_safe(expr: str, vars_dict: dict):
+            expr = expr.replace('^', '**')
+            # запрещаем доступ к __builtins__
+            safe_globals = {"__builtins__": None}
+            # разрешаем только переменные из vars_dict
+            return eval(expr, safe_globals, vars_dict)
+
         params = dict(zip(self.param_names, x))
         # result = Procedure.run_procedure(self=problem, params=x)
         self.problem = init_procedure(np.array(x))
         problem_name = get_problem_name().lower()
         cpus = get_cpus()
         parameters = np.array(x)
-        if problem_name == 'beam':
+        constraints_dict = dict()
+
+        if problem_name == 'leaflet_single':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
-            objective_values = result.get('objectives')
-            objectives_dict = {
-                "Displacement": objective_values.get('Displacement'),
-                "Mass": objective_values.get('Mass')
+            objective_values = result['results']
+
+            vars_dict = {
+                'LMN_open': objective_values['LMN_open'],
+                'LMN_closed': objective_values['LMN_closed'],
+                'Slim': get_s_lim(),
+                'Smax': objective_values['Smax'],
+                'HELI': objective_values['HELI']
             }
-            constraint_values = result.get('constraints')
-            constraints_dict = {
-                "THK_constr": constraint_values.get('THK_constr'),
-                "Width_constr": constraint_values.get('Width_constr'),
-                "Smax_constr": constraint_values.get('Smax_constr')
-            }
-        elif problem_name == 'leaflet_single':
-            result = Procedure.run_procedure(self=self.problem, params=parameters)
-            objective_values = result['objectives']
-            objectives_dict = {
-                "1 - LMN_open": objective_values['1 - LMN_open'],
-                "LMN_open": objective_values['LMN_open'],
-                "LMN_closed": objective_values['LMN_closed'],
-                "Smax": objective_values['Smax']
-            }
-            # print(f'obj: {objectives_dict}')
-            constraint_values = result['constraints']
-            constraints_dict = {
-                "VMS-Smax": constraint_values['VMS-Smax']
-            }
-            # print(f'cons: {constraints_dict}')
+
         elif problem_name == 'leaflet_contact':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
-            objective_values = result['objectives']
-            objectives_dict = {
-                '1 - LMN_open': 1 - objective_values['LMN_open'],
-                "LMN_open": objective_values['LMN_open'],
-                "LMN_closed": objective_values['LMN_closed'],
-                "Smax - Slim": objective_values['Smax - Slim'],
-                "HELI": objective_values['HELI']
-            }
-            constraint_values = result['constraints']
-            constraints_dict = {
-                "VMS-Smax": constraint_values['VMS-Smax']
+            objective_values = result['results']
+            # --- 3. Строим словарь переменных для eval
+            vars_dict = {
+                'LMN_open': objective_values['LMN_open'],
+                'LMN_closed': objective_values['LMN_closed'],
+                'Slim': get_s_lim(),
+                'Smax': objective_values['Smax'],
+                'HELI': objective_values['HELI']
             }
         elif problem_name == 'test':
-            # curr_rand = random() * 100
-            # if curr_rand > get_percent():
-
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
-            objectives_dict = {
+            vars_dict = {
                 "objective1": objective_values['objective1'],
                 "objective2": objective_values['objective2']
             }
@@ -210,18 +204,18 @@ class Problem(ElementwiseProblem):
                 "constraint3": constraint_values["constraint3"],
                 "constraint4": constraint_values["constraint4"]
             }
-            # else:
-            #     objectives_dict = {
-            #         "objective1": 1000,
-            #         "objective2": 1000
-            #     }
-            #     constraints_dict = {
-            #         "constraint1": 100,
-            #         "constraint2": 100,
-            #         "constraint3": 100,
-            #         "constraint4": 100
-            #     }
-            #     print('value losted')
+
+        objectives_vars = [eval_safe(expr, vars_dict) for expr in self.obj_names]
+        if constraints_dict == {}:
+            constraints_vars = [eval_safe(expr, vars_dict) for expr in self.constr_names]
+
+        objectives_dict = dict(zip(self.obj_names, objectives_vars))
+        constraints_dict = dict(zip(self.constr_names, constraints_vars))
+
+        result = {
+            'objectives': objectives_dict,
+            'constraints': constraints_dict
+        }
 
         out["F"] = np.array([result['objectives'][name] for name in self.obj_names])
         out["G"] = np.array([result['constraints'][name] for name in self.constr_names])
@@ -287,7 +281,7 @@ def extract_optimization_results(
         G = pd.DataFrame() if not hasattr(res, 'G') or res.G is None else pd.DataFrame(res.G,
                                                                                        columns=problem.constr_names)
     except:
-        if problem.constr_names == []:
+        if not problem.constr_names:
             G = pd.DataFrame(res.G, columns=['no constr'])
 
     CV = pd.DataFrame() if not hasattr(res, 'CV') or res.CV is None else pd.DataFrame(res.CV, columns=['CV'])
@@ -475,20 +469,20 @@ def save_optimization_summary(
             else:
                 headers_algo_params.append(f"{key}")
         if type_of_run is None:
-            headers = (["Timestamp", "Generation", "Best Index", "Elapsed Time"] + \
-                       [f"F_{col}" for col in F.columns] + \
-                       [f"X_{col}" for col in X.columns] + \
-                       [f"G_{col}" for col in G.columns] + \
-                       [f"Term_{key}" for key in termination_params] + \
-                       headers_algo_params + \
+            headers = (["Timestamp", "Generation", "Best Index", "Elapsed Time"] +
+                       [f"F_{col}" for col in F.columns] +
+                       [f"X_{col}" for col in X.columns] +
+                       [f"G_{col}" for col in G.columns] +
+                       [f"Term_{key}" for key in termination_params] +
+                       headers_algo_params +
                        ['Folder_path'])
         else:
-            headers = (["Timestamp", 'Type of run', "Generation", "Best Index", "Elapsed Time"] + \
-                       [f"F_{col}" for col in F.columns] + \
-                       [f"X_{col}" for col in X.columns] + \
-                       [f"G_{col}" for col in G.columns] + \
-                       [f"Term_{key}" for key in termination_params] + \
-                       headers_algo_params + \
+            headers = (["Timestamp", 'Type of run', "Generation", "Best Index", "Elapsed Time"] +
+                       [f"F_{col}" for col in F.columns] +
+                       [f"X_{col}" for col in X.columns] +
+                       [f"G_{col}" for col in G.columns] +
+                       [f"Term_{key}" for key in termination_params] +
+                       headers_algo_params +
                        ['Folder_path'])
         worksheet.append(headers)
 
@@ -523,14 +517,16 @@ def save_optimization_summary(
     worksheet.append(new_row)
     workbook.save(summary_file)
 
+
 def load_state(filepath='./', filename='checkpoint.pkl'):
     # return joblib.load(os.path.join(filepath,filename))
-    with open(os.path.join(filepath,filename), "rb") as f:
+    with open(os.path.join(filepath, filename), "rb") as f:
         return pickle.load(f)
+
 
 # callback class for saving
 class CustomCallback(Callback):
-    def __init__(self, objectives=['a','b'], folder_path='./utils/logs/', interval_backup=10, interval_picture=2):
+    def __init__(self, objectives=['a', 'b'], folder_path='./utils/logs/', interval_backup=10, interval_picture=2):
         print('Callback inited')
         super().__init__()
         self.objectives = objectives
@@ -540,7 +536,7 @@ class CustomCallback(Callback):
         self.min_values = []
 
     def save_state(self, algorithm):
-        with open(os.path.join(self.folder_path,f'checkpoint_{algorithm.n_gen:03d}.pkl'), 'wb') as outp:
+        with open(os.path.join(self.folder_path, f'checkpoint_{algorithm.n_gen:03d}.pkl'), 'wb') as outp:
             state = {
                 "X": algorithm.pop.get("X"),
                 "F": algorithm.pop.get("F"),
@@ -553,7 +549,6 @@ class CustomCallback(Callback):
             # joblib.dump(state, self.filename)
             pickle.dump(state, outp)
             print(f'State saved. {int(algorithm.n_gen):03d}')
-
 
     def plot_convergence(self, algorithm):
         # Получаем все значения целевых функций в текущей популяции
@@ -579,7 +574,7 @@ class CustomCallback(Callback):
             sns.lineplot(x=gens, y=y_values, ax=axes[idx],
                          marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col}")
             if len(y_values) > 2:
-                axes[idx].set_title(f"Convergence of ({obj_col}) | Δ={abs(y_values[-2]-y_values[-1]):2.2e}")
+                axes[idx].set_title(f"Convergence of ({obj_col}) | Δ={abs(y_values[-2] - y_values[-1]):2.2e}")
             else:
                 axes[idx].set_title(f"Convergence of ({obj_col})")
             axes[idx].set_xlabel("Generation")
@@ -595,23 +590,41 @@ class CustomCallback(Callback):
         if algorithm.n_gen % self.interval_picture == 0:
             self.plot_convergence(algorithm)
 
-if __name__ == "__main__":
+
+@hydra.main(config_path="configuration", config_name=config_name, version_base=None)
+def main(cfg: DictConfig):
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
+
+    parameters = {k: tuple(v) for k, v in cfg.parameters.items()}
+    objectives = cfg.objectives
+
+    print("\nConverted parameters (as tuples):")
+    print(parameters)
+    print("\nObjectives:")
+    print(objectives)
+
+    set_cpus(cfg.Abaqus.abq_cpus)
+    set_tangent_behavior(cfg.Abaqus.tangent_behavior)
+    set_normal_behavior(cfg.Abaqus.normal_behavior)
+
+    set_DIA(cfg.problem_definition.DIA)
+    set_Lift(cfg.problem_definition.Lift)
+    set_SEC(cfg.problem_definition.SEC)
+    set_EM(cfg.problem_definition.EM)
+    set_density(cfg.problem_definition.Dens)
+    set_material_name(cfg.problem_definition.material_name)
+    set_mesh_step(cfg.problem_definition.mesh_step)
+    set_valve_position(cfg.problem_definition.position)
+    set_problem_name(cfg.problem_definition.problem_name)
+    set_base_name(cfg.problem_definition.problem_name)
+    set_s_lim(cfg.problem_definition.s_lim)
+    set_global_path(str(pathlib.Path(__file__).parent.resolve()))
+
     set_mesh_step(0.4)
-    set_valve_position('mitr') # can be 'mitr'
-    # allowed 'test', 'beam', 'leaflet_single', 'leaflet_contact'
-    problem_name = 'leaflet_contact'
-    # problem_name = 'test'
-    set_dead_objects(0)
-    pop_size = 90
-    offsprings = 10
-    crossover_chance = 0.9
-    mutation_chance = 0.3
-    set_problem_name(problem_name)
-    crossover_eta = 50
-    mutation_eta = 100
-    
+    set_valve_position('mitr')  # can be 'mitr'
+    problem_name = get_problem_name()
+
     percent = 0  # synthetic % of lost results
 
     restore_state = False
@@ -625,14 +638,8 @@ if __name__ == "__main__":
 
     print(f"folder path > {basic_folder_path}")
 
-
     if problem_name.lower() == 'test':
         typeof = f'Both loss {percent}%'
-    elif problem_name.lower() == 'beam':
-        set_base_name('beam_test')
-        set_s_lim(1500)
-        set_cpus(6)
-        typeof = 'Abq beam'
     elif problem_name.lower() == 'leaflet_single':
         set_base_name('single_test')
         set_s_lim(3.3)
@@ -640,8 +647,8 @@ if __name__ == "__main__":
         typeof = 'Single leaf'
     elif problem_name.lower() == 'leaflet_contact':
         set_base_name('Mitral_test')
-        set_s_lim(3.23) # Formlabs elastic 50A
-        set_cpus(3) # 3 cpu cores shows better results then 8 cores. 260sec vs 531sec
+        set_s_lim(3.23)  # Formlabs elastic 50A
+        set_cpus(3)  # 3 cpu cores shows better results then 8 cores. 260sec vs 531sec
         typeof = 'Contact'
     else:
         typeof = problem_name
@@ -657,24 +664,7 @@ if __name__ == "__main__":
     logger.info("Starting optimization...")
 
     set_id(0)
-    if problem_name.lower() == 'beam':
-        # parameter boundaries (min, max)
-        parameters = {
-            'Width': (1.0, 20.0),
-            'THK': (1.0, 20.0)
-        }
-        # objectives names
-        objectives = ['Displacement', 'Mass']
-        # constraints names
-        constraints = ['THK_constr', 'Width_constr', 'Smax_constr']
-        ref_point = np.array(
-            [
-                (max(parameters['THK']) - max(parameters['THK'])) / 2,
-                (max(parameters['Width']) - max(parameters['Width'])) / 2,
-                get_s_lim() / 2
-            ]
-        )
-    elif problem_name.lower() == 'test':
+    if problem_name.lower() == 'test':
         # parameter boundaries (min, max)
         parameters = {
             'param1': (0.01, 10.0),
@@ -685,7 +675,8 @@ if __name__ == "__main__":
         # objectives names
         objectives = ['objective1', 'objective2']
         # constraints names
-        constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+        # constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
+        constraints = []
         ref_point = np.array([100, 0.1])
     elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
         parameters = {
@@ -696,13 +687,9 @@ if __name__ == "__main__":
             'CVT': (0.1, 0.8),
             'LAS': (0.2, 1.5)
         }
-        # objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        objectives = ['1 - LMN_open', 'LMN_closed', 'Smax - Slim', 'HELI']
-        # constraints = [  # 'LMN_op_constr'],
-        # 'LMN_cl_constr',
-        # 'VMS-Smax']
+        objectives = ['1 - LMN_open', 'LMN_closed', 'Smax - Slim', 'HELI', 'Gauss_curv']
         constraints = []
-        ref_point = np.array([1, 0, get_s_lim(),0])
+        ref_point = np.array([1, 0, get_s_lim(), 0])
     print('Parameters:', parameters)
     print('Objectives:', objectives)
     print('Constraints:', constraints)
@@ -718,26 +705,29 @@ if __name__ == "__main__":
         interval_picture=1
     )
 
+    ref_dirs = get_reference_directions("uniform", len(objectives), n_partitions=cfg.optimizer.pop_size)
     # algorithm initialization
     algorithm_params = {
-        "pop_size": pop_size,
-        "n_offsprings": offsprings,
+        "ref_dirs": ref_dirs,
+        "n_offsprings": cfg.optimizer.offsprings,
         "sampling": FloatRandomSampling(),
-        "crossover": SBX(prob=crossover_chance, eta=crossover_eta),
-        "mutation": PM(prob=mutation_chance, eta=mutation_eta),
-        "eliminate_duplicates": True
+        "crossover": SBX(prob=cfg.optimizer.crossover_chance, eta=cfg.optimizer.crossover_eta),
+        "mutation": PM(prob=cfg.optimizer.mutation_chance, eta=cfg.optimizer.mutation_eta),
+        "neighborhood_size": cfg.optimizer.neighborhood_size,
+        "prob_neighbor_mating": cfg.optimizer.prob_neighbor_mating,
+        "decomposition": ASF()  # or any other decomposition
     }
-    algorithm = NSGA2(**algorithm_params)
+    algorithm = MOEAD(**algorithm_params)
     detailed_algo_params = print_algorithm_params(algorithm_params)
 
     # termination criteria
     termination_params = {
-        "xtol": 1e-8,
-        "cvtol": 1e-6,
-        "ftol": 0.0025,
-        "period": 5,
-        "n_max_gen": 2000,
-        "n_max_evals": 100000
+        "xtol": cfg.optimizer.termination_parameters.xtol,
+        "cvtol": cfg.optimizer.termination_parameters.cvtol,
+        "ftol": cfg.optimizer.termination_parameters.ftol,
+        "period": cfg.optimizer.termination_parameters.period,
+        "n_max_gen": cfg.optimizer.termination_parameters.n_max_gen,
+        "n_max_evals": cfg.optimizer.termination_parameters.n_max_evals
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
     print_termination_params(termination_params)
@@ -762,7 +752,6 @@ if __name__ == "__main__":
                    callback=save_callback,
                    verbose=True)
     elapsed_time = time.time() - start_time
-
 
     try:
         # result storage
@@ -901,7 +890,7 @@ if __name__ == "__main__":
         Lift = 0
         SEC = 119
 
-        from utils.createGeometry import createGeometry
+        from utils.create_geometry_utils import createGeometry
 
         pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
             createGeometry(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=THK,
@@ -918,3 +907,6 @@ if __name__ == "__main__":
     sys.stdout = basic_stdout
     sys.stderr = basic_stderr
 
+
+if __name__ == "__main__":
+    main()

@@ -1,13 +1,18 @@
-import gc
-import os
-import sys
 import datetime
 import logging
-from typing import Tuple, Optional, List, Dict
-import numpy as np
+import pickle
+import sys
+import time
+
 import pandas as pd
+from glob2 import glob
 import openpyxl
+import pathlib
+from omegaconf import DictConfig
+import hydra
+
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.callback import Callback
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
 from pymoo.decomposition.asf import ASF
@@ -16,16 +21,12 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
-from utils.global_variable import get_problem_name, get_percent, get_cpus
-from utils.visualize import *
-from utils.problem import init_procedure, Procedure
-import time
-from random import random
-from glob2 import glob
-from utils.global_variable import (set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id,
-                                   set_dead_objects, set_mesh_step, set_valve_position)
-import pickle
 
+from utils.global_variable import *
+from utils.problem_no_xlsx import Procedure, init_procedure
+from utils.visualize import *
+
+config_name = 'config_leaf_NSGA2'
 
 class MultiStreamHandler:
     """
@@ -56,7 +57,7 @@ def setup_logger(folder_path: str, log_file_name: str = 'terminal_log.txt') -> l
     #Sets up a logger to capture verbose output, writing to both a log file and the console.
     #Args: folder_path (str): The directory path to save the log file.
     #log_file_name (str, optional): The name of the log file. Defaults to 'terminal_log.txt'.
-    # Returns: logging.Logger: Configured logger for capturing terminal output.  """ 
+    # Returns: logging.Logger: Configured logger for capturing terminal output.  """
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
@@ -131,6 +132,7 @@ class Problem(ElementwiseProblem):
         self.obj_names = objectives
         self.constr_names = constraints
 
+
     def _evaluate(self, x, out, *args, **kwargs):
         """
         Evaluates the problem for a given solution, updating objective and constraint values.
@@ -143,6 +145,14 @@ class Problem(ElementwiseProblem):
         Returns:
             None: This function updates the `out` dictionary with the calculated objective and constraint values.
         """
+
+        def eval_safe(expr: str, vars_dict: dict):
+            expr = expr.replace('^', '**')
+            # запрещаем доступ к __builtins__
+            safe_globals = {"__builtins__": None}
+            # разрешаем только переменные из vars_dict
+            return eval(expr, safe_globals, vars_dict)
+
         params = dict(zip(self.param_names, x))
         # result = Procedure.run_procedure(self=problem, params=x)
         self.problem = init_procedure(np.array(x))
@@ -151,61 +161,64 @@ class Problem(ElementwiseProblem):
         parameters = np.array(x)
         if problem_name == 'leaflet_single':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
-            objective_values = result['objectives']
-            objectives_dict = {
-                "1 - LMN_open": objective_values['1 - LMN_open'],
-                "LMN_open": objective_values['LMN_open'],
-                "LMN_closed": objective_values['LMN_closed'],
-                "Smax": objective_values['Smax']
+            objective_values = result['results']
+
+            vars_dict = {
+                'LMN_open': objective_values['LMN_open'],
+                'LMN_closed': objective_values['LMN_closed'],
+                'Slim': get_s_lim(),
+                'Smax': objective_values['Smax'],
+                'HELI': objective_values['HELI']
             }
-            # print(f'obj: {objectives_dict}')
-            constraint_values = result['constraints']
-            constraints_dict = {
-                "VMS-Smax": constraint_values['VMS-Smax']
+            objectives_vars = [eval_safe(expr, vars_dict) for expr in self.obj_names]
+            constraints_vars = [eval_safe(expr, vars_dict) for expr in self.constr_names]
+
+            objectives_dict = dict(zip(self.obj_names, objectives_vars))
+            constraints_dict = dict(zip(self.constr_names, constraints_vars))
+
+            result = {
+                'objectives': objectives_dict,
+                'constraints': constraints_dict
             }
-            # print(f'cons: {constraints_dict}')
         elif problem_name == 'leaflet_contact':
+            result = Procedure.run_procedure(self=self.problem, params=parameters)
+            objective_values = result['results']
+            # --- 3. Строим словарь переменных для eval
+            vars_dict = {
+                'LMN_open': objective_values['LMN_open'],
+                'LMN_closed': objective_values['LMN_closed'],
+                'Slim': get_s_lim(),
+                'Smax': objective_values['Smax'],
+                'HELI': objective_values['HELI']
+            }
+            objectives_vars = [eval_safe(expr, vars_dict) for expr in self.obj_names]
+            constraints_vars = [eval_safe(expr, vars_dict) for expr in self.constr_names]
+
+            objectives_dict = dict(zip(self.obj_names, objectives_vars))
+            constraints_dict = dict(zip(self.constr_names, constraints_vars))
+
+            result = {
+                'objectives': objectives_dict,
+                'constraints': constraints_dict
+            }
+        elif problem_name == 'test':
             result = Procedure.run_procedure(self=self.problem, params=parameters)
             objective_values = result['objectives']
             objectives_dict = {
-                '1 - LMN_open': 1 - objective_values['LMN_open'],
-                "LMN_open": objective_values['LMN_open'],
-                "LMN_closed": objective_values['LMN_closed'],
-                "Smax - Slim": objective_values['Smax - Slim'],
-                "HELI": objective_values['HELI']
+                "objective1": objective_values['objective1'],
+                "objective2": objective_values['objective2']
             }
             constraint_values = result['constraints']
             constraints_dict = {
-                "VMS-Smax": constraint_values['VMS-Smax']
+                "constraint1": constraint_values["constraint1"],
+                "constraint2": constraint_values["constraint2"],
+                "constraint3": constraint_values["constraint3"],
+                "constraint4": constraint_values["constraint4"]
             }
-        elif problem_name == 'test':
-            curr_rand = random() * 100
-            if curr_rand > get_percent():
-                result = problem.evaluate(parameters)
-                objective_values = result[0]
-                objectives_dict = {
-                    "objective1": objective_values[0],
-                    "objective2": objective_values[1]
-                }
-                constraint_values = result[1]
-                constraints_dict = {
-                    "constraint1": constraint_values[0],
-                    "constraint2": constraint_values[1],
-                    "constraint3": constraint_values[2],
-                    "constraint4": constraint_values[3]
-                }
-            else:
-                objectives_dict = {
-                    "objective1": 1000,
-                    "objective2": 1000
-                }
-                constraints_dict = {
-                    "constraint1": 100,
-                    "constraint2": 100,
-                    "constraint3": 100,
-                    "constraint4": 100
-                }
-                print('value losted')
+            result = {
+                'objectives': objectives_dict,
+                'constraints': constraints_dict
+            }
 
         out["F"] = np.array([result['objectives'][name] for name in self.obj_names])
         out["G"] = np.array([result['constraints'][name] for name in self.constr_names])
@@ -222,7 +235,7 @@ def extract_optimization_results(
     Optional[pd.DataFrame],
     Optional[pd.DataFrame],
     Optional[pd.DataFrame]
-]:
+    ]:
     """
     Extracts optimization results from a pymoo Result object into DataFrames,
     storing history to an Excel file and returning DataFrames for design space,
@@ -508,100 +521,151 @@ def save_optimization_summary(
     workbook.save(summary_file)
 
 
-def save_object(obj, filepath, filename):
-    with open(os.path.join(folder_path, filename), 'wb') as outp:  # Overwrites any existing file.
-        pickle.dump(obj, outp, pickle.HIGHEST_PROTOCOL)
+def load_state(filepath='./', filename='checkpoint.pkl'):
+    # return joblib.load(os.path.join(filepath,filename))
+    with open(os.path.join(filepath, filename), "rb") as f:
+        return pickle.load(f)
 
 
-if __name__ == "__main__":
+class CustomCallback(Callback):
+    def __init__(self, objectives=['a','b'], folder_path='./utils/logs/', interval_backup=10, interval_picture=2):
+        print('Callback inited')
+        super().__init__()
+        self.objectives = objectives
+        self.folder_path = folder_path
+        self.interval_backup = interval_backup
+        self.interval_picture = interval_picture
+        self.min_values = []
+
+    def save_state(self, algorithm):
+        with open(os.path.join(self.folder_path,f'checkpoint_{algorithm.n_gen:03d}.pkl'), 'wb') as outp:
+            state = {
+                "X": algorithm.pop.get("X"),
+                "F": algorithm.pop.get("F"),
+                "n_gen": algorithm.n_gen,
+                "algorithm_state": {
+                    key: value for key, value in algorithm.__dict__.items()
+                    if not isinstance(value, (openpyxl.Workbook, openpyxl.worksheet.worksheet.Worksheet))
+                }
+            }
+            # joblib.dump(state, self.filename)
+            pickle.dump(state, outp)
+            print(f'State saved. {int(algorithm.n_gen):03d}')
+
+
+    def plot_convergence(self, algorithm):
+        # Получаем все значения целевых функций в текущей популяции
+        # Предполагается, что F - это массив значений целевых функций для каждого индивида
+        objectives = [ind.F for ind in algorithm.pop]
+        # Преобразуем в DataFrame для удобства обработки
+        objectives_df = pd.DataFrame(objectives, columns=self.objectives)
+        # Находим минимальные значения по каждой целевой функции
+        min_objectives = objectives_df.min()
+        # Находим минимальное значение среди всех целевых функций
+        overall_min = min_objectives.min()
+        # Добавляем текущую генерацию и минимальное значение в историю
+        self.min_values.append((algorithm.n_gen, min_objectives))
+        num_objectives = len(min_objectives)
+        # Построение графика с использованием Seaborn
+        sns.set(style="whitegrid")
+        fig, axes = plt.subplots(1, num_objectives, figsize=(15, 5), sharey=False)
+        if num_objectives == 1:
+            axes = [axes]
+        gens, vals = zip(*self.min_values)
+        for idx, obj_col in enumerate(self.objectives):
+            y_values = [val[obj_col] for val in vals]
+            sns.lineplot(x=gens, y=y_values, ax=axes[idx],
+                         marker='o', color='b', markeredgecolor=None, label=f"Best {obj_col}")
+            if len(y_values) > 2:
+                axes[idx].set_title(f"Convergence of ({obj_col}) | Δ={abs(y_values[-2]-y_values[-1]):2.2e}")
+            else:
+                axes[idx].set_title(f"Convergence of ({obj_col})")
+            axes[idx].set_xlabel("Generation")
+        # Сохранение графика с указанием текущей генерации
+        # plt.savefig(os.path.join(self.folder_path, f'intime_convergence_gen_{algorithm.n_gen}.png'))
+        plt.savefig(os.path.join(self.folder_path, f'intime_convergence.png'))
+        plt.close()
+        # time.sleep(2)
+
+    def notify(self, algorithm):
+        if algorithm.n_gen % self.interval_backup == 0:
+            self.save_state(algorithm)
+        if algorithm.n_gen % self.interval_picture == 0:
+            self.plot_convergence(algorithm)
+
+
+
+@hydra.main(config_path="configuration", config_name=config_name, version_base=None)
+def main(cfg:DictConfig) -> None:
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
-    set_mesh_step(0.4)
-    set_valve_position('mitr') # can be 'mitr'
-    # allowed 'test', 'leaflet_single', 'leaflet_contact'
-    problem_name = 'leaflet_contact'
-    set_dead_objects(0)
-    pop_size = 90
-    offsprings = 10
-    crossover_chance = 0.9
-    mutation_chance = 0.3
-    set_problem_name(problem_name)
-    crossover_eta = 50
-    mutation_eta = 100
 
-    percent = 0  # synthetic % of lost results
+    parameters = {k: tuple(v) for k, v in cfg.parameters.items()}
+    objectives = cfg.objectives
 
-    if problem_name.lower() == 'test':
-        typeof = f'Both loss {percent}%'
-    elif problem_name.lower() == 'leaflet_single':
-        set_base_name('single_test')
-        set_s_lim(3.3)
-        set_cpus(6)
-        typeof = 'Single leaf'
-    elif problem_name.lower() == 'leaflet_contact':
-        set_base_name('Mitral_test')
-        set_s_lim(3.23) # Formlabs elastic 50A
-        set_cpus(4)
-        typeof = 'Contact'
+    print("\nConverted parameters (as tuples):")
+    print(parameters)
+    print("\nObjectives:")
+    print(objectives)
+
+    set_cpus(cfg.Abaqus.abq_cpus)
+    set_tangent_behavior(cfg.Abaqus.tangent_behavior)
+    set_normal_behavior(cfg.Abaqus.normal_behavior)
+
+    set_DIA(float(cfg.problem_definition.DIA))
+    set_Lift(float(cfg.problem_definition.Lift))
+    set_SEC(float(cfg.problem_definition.SEC))
+    set_EM(float(cfg.problem_definition.EM))
+    set_density(float(cfg.problem_definition.Dens))
+    set_material_name(cfg.problem_definition.material_name)
+    set_mesh_step(float(cfg.problem_definition.mesh_step))
+    set_valve_position(cfg.problem_definition.position)
+    set_problem_name(cfg.problem_definition.problem_name)
+    set_base_name(cfg.problem_definition.problem_name)
+    set_s_lim(float(cfg.problem_definition.s_lim))
+    set_global_path(str(pathlib.Path(__file__).parent.resolve()))
+
+    restore_state = False
+
+    # folder to store results
+    if not restore_state:
+        basic_folder_path = create_results_folder(base_folder='results')
     else:
-        typeof = problem_name
+        basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', '007_14_01_2025')
+        last_gen = 10
 
-    set_percent(percent)
+    print(f"folder path > {basic_folder_path}")
+
     for file in glob('./*.rpy*'):
         os.remove(file)
 
-    # folder to store results
-    folder_path = create_results_folder(base_folder='results')
-
     # logging
-    logger = setup_logger(folder_path)
+    logger = setup_logger(basic_folder_path)
+
     start_time = time.time()
     logger.info("Starting optimization...")
 
     set_id(0)
-    if problem_name.lower() == 'test':
-        # parameter boundaries (min, max)
-        parameters = {
-            'param1': (0.01, 10.0),
-            'param2': (0.01, 10.0),
-            'param3': (0.01, 10.0),
-            'param4': (0.01, 10.0)
-        }
-        # objectives names
-        objectives = ['objective1', 'objective2']
-        # constraints names
-        constraints = ['constraint1', 'constraint2', 'constraint3', 'constraint4']
-        ref_point = np.array([100, 0.1])
-    elif problem_name.lower() == 'leaflet_single' or problem_name.lower() == 'leaflet_contact':
-        parameters = {
-            'HGT': (10, 15.5),
-            'Lstr': (0, 1),
-            'THK': (0.25, 0.6),
-            'ANG': (-10, 10),
-            'CVT': (0.1, 0.8),
-            'LAS': (0.2, 1.5)
-        }
-        # objectives = ['LMN_open', 'LMN_closed', 'Smax']
-        objectives = ['1 - LMN_open', 'LMN_closed', 'Smax - Slim', 'HELI']
-        # constraints = [  # 'LMN_op_constr'],
-        # 'LMN_cl_constr',
-        # 'VMS-Smax']
-        constraints = []
-        ref_point = np.array([1, 0, get_s_lim(),0])
-    print('Parameters:', parameters)
-    print('Objectives:', objectives)
-    print('Constraints:', constraints)
+    constraints = []
 
     # problem initialization
     problem = Problem(parameters, objectives, constraints)
 
+    # callback initialisation
+    save_callback = CustomCallback(
+        objectives=objectives,
+        folder_path=basic_folder_path,
+        interval_backup=10,
+        interval_picture=1
+    )
+
     # algorithm initialization
     algorithm_params = {
-        "pop_size": pop_size,
-        "n_offsprings": offsprings,
+        "pop_size":  cfg.optimizer.pop_size,
+        "n_offsprings":  cfg.optimizer.offsprings,
         "sampling": FloatRandomSampling(),
-        "crossover": SBX(prob=crossover_chance, eta=crossover_eta),
-        "mutation": PM(prob=mutation_chance, eta=mutation_eta),
+        "crossover": SBX(prob= cfg.optimizer.crossover_chance, eta= cfg.optimizer.crossover_eta),
+        "mutation": PM(prob=cfg.optimizer.mutation_chance, eta=cfg.optimizer.mutation_eta),
         "eliminate_duplicates": True
     }
     algorithm = NSGA2(**algorithm_params)
@@ -609,36 +673,46 @@ if __name__ == "__main__":
 
     # termination criteria
     termination_params = {
-        "xtol": 1e-8,
-        "cvtol": 1e-6,
-        "ftol": 0.0025,
-        "period": 5,
-        "n_max_gen": 1000,
-        "n_max_evals": 100000
+        "xtol": float(cfg.optimizer.termination_parameters.xtol),
+        "cvtol": float(cfg.optimizer.termination_parameters.cvtol),
+        "ftol": float(cfg.optimizer.termination_parameters.ftol),
+        "period": float(cfg.optimizer.termination_parameters.period),
+        "n_max_gen": float(cfg.optimizer.termination_parameters.n_max_gen),
+        "n_max_evals": float(cfg.optimizer.termination_parameters.n_max_evals)
     }
     termination = DefaultMultiObjectiveTermination(**termination_params)
     print_termination_params(termination_params)
+
+    if restore_state:
+        try:
+            state = load_state(filepath=basic_folder_path, filename=f'checkpoint_{last_gen:03d}.pkl')
+            algorithm.n_gen = state["n_gen"]
+            for key, value in state["algorithm_state"].items():
+                setattr(algorithm, key, value)
+            print(f'State was loaded. Current gen is {algorithm.n_gen}')
+        except FileNotFoundError:
+            print(f'Pickle file not found!')
+            sys.exit(1)
 
     # run optimization
     res = minimize(problem,
                    algorithm,
                    termination,
-                   seed=2,
+                   seed=1,
                    save_history=True,
+                   callback=save_callback,
                    verbose=True)
     elapsed_time = time.time() - start_time
 
-    # save_object(res, folder_path, 'results_object.pkl')
-
     try:
         # result storage
-        history_df, X, F, G, CV, pop = extract_optimization_results(res, problem, folder_path)
-        history_df.to_csv(os.path.join(folder_path, 'history.csv'))
-        X.to_csv(os.path.join(folder_path, 'X.csv'))
-        F.to_csv(os.path.join(folder_path, 'F.csv'))
-        G.to_csv(os.path.join(folder_path, 'G.csv'))
-        CV.to_csv(os.path.join(folder_path, 'CV.csv'))
-        pop.to_csv(os.path.join(folder_path, 'pop.csv'))
+        history_df, X, F, G, CV, pop = extract_optimization_results(res, problem, basic_folder_path)
+        history_df.to_csv(os.path.join(basic_folder_path, 'history.csv'))
+        X.to_csv(os.path.join(basic_folder_path, 'X.csv'))
+        F.to_csv(os.path.join(basic_folder_path, 'F.csv'))
+        G.to_csv(os.path.join(basic_folder_path, 'G.csv'))
+        CV.to_csv(os.path.join(basic_folder_path, 'CV.csv'))
+        pop.to_csv(os.path.join(basic_folder_path, 'pop.csv'))
 
         #  Find the best trade-off between objectives using Augmented Scalarization Function (ASF)
 
@@ -654,8 +728,8 @@ if __name__ == "__main__":
 
         # upload result to integrate table
         save_optimization_summary(
-            typeof,
-            folder_path,
+            get_problem_name(),
+            basic_folder_path,
             best_index,
             elapsed_time,
             F,
@@ -676,11 +750,11 @@ if __name__ == "__main__":
         'CV': 'CV.csv',
         'pop': 'pop.csv'
     }
-    optimization_results = load_optimization_results(folder_path, csv_files)
+    optimization_results = load_optimization_results(basic_folder_path, csv_files)
 
     # Best trade-off between objectives using ASF
     try:
-        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=folder_path)
+        plot_best_objectives(F=optimization_results['F'], weights='equal', folder_path=basic_folder_path)
         print(colored("Best trade-off plot created successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
@@ -690,7 +764,7 @@ if __name__ == "__main__":
         plot_objectives_vs_parameters(
             X=optimization_results['X'],
             F=optimization_results['F'],
-            folder_path=folder_path
+            folder_path=basic_folder_path
         )
         print(colored("Objectives vs Parameters plotted successfully.", "green"))
     except Exception as e:
@@ -701,7 +775,7 @@ if __name__ == "__main__":
         plot_constrains_vs_parameters(
             X=optimization_results['X'],
             G=optimization_results['G'],
-            folder_path=folder_path
+            folder_path=basic_folder_path
         )
         print(colored("Constrains vs Parameters plotted successfully.", "green"))
     except Exception as e:
@@ -710,7 +784,7 @@ if __name__ == "__main__":
     # Convergence for objectives
     try:
         plot_objective_convergence(optimization_results['history'], objectives,
-                                   folder_path)
+                                   basic_folder_path)
         print(colored("Objective Convergence plotted successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot Objective Convergence: {str(e)}", "red"))
@@ -722,7 +796,7 @@ if __name__ == "__main__":
             G=optimization_results['G'],
             F=optimization_results['F'],
             objectives=objectives,
-            folder_path=folder_path
+            folder_path=basic_folder_path
         )
         print(colored("Parallel Coordinates plotted successfully.", "green"))
     except Exception as e:
@@ -730,7 +804,7 @@ if __name__ == "__main__":
 
     # Convergence by Hypervolume
     try:
-        plot_convergence_by_hypervolume(optimization_results['history'], objectives, folder_path)
+        plot_convergence_by_hypervolume(optimization_results['history'], objectives, basic_folder_path)
         print(colored("Convergence by Hypervolume plotted successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot Convergence by Hypervolume: {str(e)}", "red"))
@@ -741,7 +815,7 @@ if __name__ == "__main__":
             optimization_results['history'],
             problem.param_names,
             problem.obj_names,
-            folder_path
+            basic_folder_path
         )
         print(colored("Parameters over generations plotted successfully.", "green"))
     except Exception as e:
@@ -754,12 +828,17 @@ if __name__ == "__main__":
             F=optimization_results['F'],
             objectives=problem.obj_names,
             weights='equal',
-            folder_path=folder_path
+            folder_path=basic_folder_path
         )
         print(colored("Best trade-off plot created successfully.", "green"))
     except Exception as e:
         print(colored(f"Failed to plot best trade-off objectives: {str(e)}", "red"))
+
     cleanup_logger(logger)
     del logger
     sys.stdout = basic_stdout
     sys.stderr = basic_stderr
+
+
+if __name__ == "__main__":
+    main()

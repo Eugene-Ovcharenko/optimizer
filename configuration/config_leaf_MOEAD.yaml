@@ -1,0 +1,54 @@
+parameters:
+  HGT: [10, 15.5]
+  Lstr: [0, 1]
+  THK: [0.25, 0.6]
+  ANG: [-10, 10]
+  CVT: [0.1, 0.8]
+  LAS: [0.2, 1.0]
+
+objectives:
+  - -LMN_open^2
+  - LMN_closed
+  - Slim - Smax
+  - -HELI^2
+
+problem_definition:
+  name: Mitral_29mm
+  position: mitr
+  problem_name: leaflet_contact
+  s_lim: 3.23
+  DIA: 26
+  Lift: 0
+  SEC: 119
+  EM: 1.88
+  Dens: 1.02e-9
+  material_name: FormLabs Elasctic 50A
+  material_csv_path: material.csv
+  mesh_step: 0.4
+
+Abaqus:
+  abq_cpus: 3
+  tangent_behavior: 1
+  normal_behavior: 0.2
+
+
+optimizer:
+  pop_size: 90
+  offsprings: 10
+  crossover_chance: 0.9
+  mutation_chance: 0.3
+  crossover_eta: 50
+  mutation_eta: 100
+  termination_parameters:
+    xtol: 0.00000001
+    cvtol: 0.000001
+    ftol: 0.0025
+    period: 5
+    n_max_gen: 2000
+    n_max_evals: 100000
+
+hydra:
+  run:
+    dir: .
+
+

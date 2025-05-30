@@ -11,14 +11,14 @@ from random import random
 from utils.global_variable import *
 from pymoo.problems import get_problem
 from utils.get_history_output import get_history_output as get_history_output
-from utils.runabaqus import runabaqus as runabaqus
+from utils.run_abaqus import run_abaqus as run_abaqus
 from utils.read_data import read_data
 from utils.purgeFiles import purgeFiles
 from utils.logger_leaflet import configure_log_leaflet, cleanup_log_leaflet
 from utils.generateShell import generateShell
 from utils.createGeometry import createGeometry
 from utils.logger_leaflet import log_message
-from utils.write_inp import write_inp_shell, write_inp_contact, write_inp_beam
+from utils.write_inp import write_inp_shell, write_inp_contact
 from optimizer import *
 from utils.problem import *
 import os
@@ -98,7 +98,7 @@ def run_leaflet_contact(params):
         press_overclosure='linear', tangent_behavior=tangent_behavior,
         normal_behavior=normal_behavior
     )
-    # _ = runabaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
+    # _ = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
     # _ = get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
     # try:
     #     endPath = pathToAbaqus + 'results/'
@@ -121,7 +121,7 @@ def run_leaflet_contact(params):
     #             press_overclosure='linear', tangent_behavior=tangent_behavior,
     #             normal_behavior=normal_behavior
     #         )
-    #         message = runabaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
+    #         message = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
     #         outFEATime = datetime.datetime.now() - tt1
     #     except Exception as e:
     #         pass
