@@ -353,7 +353,7 @@ def read_data(
     return LMN_op, LMN_cl, Smax, VMS, perf_index, isHelicopter
 
 
-def is_it_twisted(nodes: np.ndarray = None, SEC: float = None) -> float:
+def is_it_twisted(nodes: np.ndarray = None) -> float:
     """
     Evaluate leaflet edge deflection outside the intended sector range ("helicopter effect").
 
@@ -364,7 +364,6 @@ def is_it_twisted(nodes: np.ndarray = None, SEC: float = None) -> float:
 
     Args:
         nodes (np.ndarray): Nodal coordinate array of shape (N, 3) representing leaflet surface.
-        SEC (float): Sector angle in degrees; defines leaflet angular range (e.g., 120° for tri-leaflet).
 
     Returns:
         float: Maximum signed perpendicular distance (in-plane) from leaflet nodes to the sector boundaries.
@@ -376,7 +375,7 @@ def is_it_twisted(nodes: np.ndarray = None, SEC: float = None) -> float:
         - The algorithm calculates the perpendicular (normal) distance to sector edge vectors projected in the XY-plane.
 
     Example:
-        >>> max_deviation = is_it_twisted(nodes=leaflet_nodes, SEC=120)
+        >>> max_deviation = is_it_twisted(nodes=leaflet_nodes)
 
     Applications:
         - Quality control and validation of leaflet model symmetry.
@@ -399,7 +398,7 @@ def is_it_twisted(nodes: np.ndarray = None, SEC: float = None) -> float:
     """
     # 1. Переводим узлы в полярные координаты (угол theta в радианах, радиус rho)
     theta, rho, _ = cart2pol(x=nodes[:, 0], y=nodes[:, 1], lz=nodes[:, 2])
-
+    SEC = get_SEC()
     # 2. Пороговые углы (в радианах)
     half_width = np.deg2rad(SEC / 2)
     alpha1 = np.deg2rad(90) - half_width

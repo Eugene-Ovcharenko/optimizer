@@ -10,7 +10,7 @@ objectives:
   - -LMN_open^2
   - LMN_closed
   - Slim - Smax
-  - -HELI^2
+  - -1/(HELI^2)
 
 problem_definition:
   name: Mitral_29mm
@@ -22,7 +22,7 @@ problem_definition:
   SEC: 119
   EM: 1.88
   Dens: 1.02e-9
-  material_name: Bovine pericardium
+  material_name: Linear material
   material_csv_path: bp.csv
   mesh_step: 0.4
 

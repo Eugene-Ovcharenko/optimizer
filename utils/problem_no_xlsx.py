@@ -290,8 +290,8 @@ class Procedure:
                 # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
                 try:
                     get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
-                except:
-                    raise 'Odb parse problem'
+                except Exception as e:
+                    raise f'Odb parse problem. Error: {e}'
 
                 try:
                     endPath = pathToAbaqus + 'results/'
@@ -316,8 +316,8 @@ class Procedure:
 
                     try:  # already in try: and switched direction
                         get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
-                    except:
-                        raise 'Odb parse problem'
+                    except Exception as e:
+                        raise f'Odb parse problem. Reverse direction! Error: {e}'
 
                     try:
                         endPath = pathToAbaqus + 'results/'

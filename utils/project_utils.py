@@ -201,13 +201,14 @@ def purgeFiles(
             os.system(rm_com + pathToAbaqus + jobName + ".simdir")
 
     # Get all files matching the pattern
-    all_files = glob(os.path.join(pathToAbaqus, jobName) + '*')
+    all_files = [f for f in glob(os.path.join(pathToAbaqus, jobName) + '*') if os.path.isfile(f)]
 
     # Filter out files with extensions you want to exclude
-    files_to_delete = [
-        f for f in all_files
-        if not (f.endswith(".py") or f.endswith(".odb") or f.endswith(".txt"))
-    ]
+    # files_to_delete = [
+    #     f for f in all_files
+    #     if not (f.endswith(".py") or f.endswith(".odb") or f.endswith(".txt"))
+    # ]
+    files_to_delete = all_files
 
     # Delete the filtered files
     for file_path in files_to_delete:
