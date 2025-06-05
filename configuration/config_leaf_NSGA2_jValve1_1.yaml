@@ -1,0 +1,54 @@
+parameters:
+  HGT: [13.5, 13.5]
+  Lstr: [5, 5]
+  THK: [0.16, 0.16]
+  ANG: [-15, 15]
+  CVT: [0.1, 0.8]
+  LAS: [0.1, 1.0]
+
+objectives:
+  - 1 - LMN_open
+  - LMN_closed
+  - Slim - Smax
+  - HELI
+
+problem_definition:
+  name: JValve_27mm
+  position: mitr
+  problem_name: leaflet_contact
+  s_lim: 5
+  DIA: 25.9
+  Lift: 0
+  SEC: 116
+  EM: 60
+  Dens: 1e-9
+  material_name: JValve_material
+  material_csv_path: JValve_material.csv
+  mesh_step: 0.4
+
+Abaqus:
+  abq_cpus: 3
+  tangent_behavior: 0.8
+  normal_behavior: 0.2
+
+
+optimizer:
+  pop_size: 90
+  offsprings: 10
+  crossover_chance: 0.9
+  mutation_chance: 0.3
+  crossover_eta: 50
+  mutation_eta: 100
+  termination_parameters:
+    xtol: 0.00000001
+    cvtol: 0.000001
+    ftol: 0.0025
+    period: 5
+    n_max_gen: 200
+    n_max_evals: 2000
+
+hydra:
+  run:
+    dir: .
+
+

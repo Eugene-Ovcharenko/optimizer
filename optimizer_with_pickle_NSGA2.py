@@ -26,7 +26,7 @@ from utils.global_variable import *
 from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.visualize import *
 
-config_name = 'config_leaf_NSGA2_jValve1_0'
+config_name = 'config_leaf_NSGA2_jValve1_1'
 
 class MultiStreamHandler:
     """

@@ -9,18 +9,11 @@ import trimesh
 import pathlib
 from random import random
 from utils.global_variable import *
-from pymoo.problems import get_problem
-from utils.get_history_output import get_history_output as get_history_output
-from utils.run_abaqus import run_abaqus as run_abaqus
-from utils.read_data import read_data
-from utils.purgeFiles import purgeFiles
-from utils.logger_leaflet import configure_log_leaflet, cleanup_log_leaflet
-from utils.generateShell import generateShell
-from utils.createGeometry import createGeometry
-from utils.logger_leaflet import log_message
-from utils.write_inp import write_inp_shell, write_inp_contact
-from optimizer import *
-from utils.problem import *
+from utils.create_geometry_utils import generateShell
+from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
+from utils.create_input_files import write_inp_contact
+from utils.fea_results_utils import read_data
+from utils.compute_utils import run_abaqus, get_history_output
 import os
 
 
@@ -32,6 +25,7 @@ def run_leaflet_contact(params):
         Lstr, ANG, CVT, LAS = params
         HGT = 11
         THK = 0.3
+    reset_direction()
     ID = get_id()
     DIA = 29 - 2 * 1.5
     Lift = 0
@@ -83,8 +77,8 @@ def run_leaflet_contact(params):
 
 
     del mesh
-    pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + 'utils/abaqusWF/'
-    inpFileName = str('./inps/') + f'{get_base_name()}_{ID}'
+    pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/utils/abaqusWF/'
+    inpFileName = str(pathlib.Path(__file__).parent.resolve()) + str('/utils/inps/') + f'{get_base_name()}_{ID}'
     jobName = str(baseName) + '_Job'
     modelName = str(baseName) + '_Model'
     partName = str(baseName) + '_Part'
@@ -98,18 +92,13 @@ def run_leaflet_contact(params):
         press_overclosure='linear', tangent_behavior=tangent_behavior,
         normal_behavior=normal_behavior
     )
-    # _ = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
-    # _ = get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
-    # try:
-    #     endPath = pathToAbaqus + 'results/'
-    #     LMN_op, LMN_cl, Smax, VMS, perf_index, heli = read_data(
-    #         pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName, Slim=3.23,
-    #         HGT=HGT, Lstr=Lstr, DIA=DIA, THK=THK, ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, EM=EM, SEC=SEC,
-    #         tangent_behavior=tangent_behavior, normal_behavior=normal_behavior,
-    #         mesh_step=mesh_step, outFEATime=outFEATime, fileName=fileName,
-    #         sheet_short=self.sheet_short, sheet_desc=self.sheet_desc, wbResults=self.wbResults,
-    #         outFileNameResult=self.outFileNameResults, outFileNameGeom=self.outFileNameLog, tt1=tt1
-    #     )
+    run_abaqus(pathToAbaqus.replace('\\','/'), jobName, inpFileName, 3)
+    get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
+
+    endPath = pathToAbaqus + 'results/'
+    LMN_op, LMN_cl, Smax, VMS, perf_index, heli = read_data(
+        pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName
+    )
     #     purgeFiles(endPath, partName, pathToAbaqus, jobName)
     # except Exception as e:
     #     change_direction()
@@ -166,7 +155,7 @@ def run_leaflet_contact(params):
 
 if __name__ == '__main__':
     from utils.global_variable import set_mesh_step, set_base_name
-    set_mesh_step(0.5)
+    set_mesh_step(0.4)
     set_base_name('opt_geom')
     set_s_lim(3.23)  # Formlabs elastic 50A
     set_cpus(3)
@@ -175,11 +164,11 @@ if __name__ == '__main__':
     set_percent(0)
     import pandas as pd
 
-    trade_off_df = pd.read_excel(os.path.join('results','test','test.xlsx'))
+    trade_off_df = pd.read_excel(os.path.join('inps','Обработка данных на основе History_ed (1.1).xlsx'), sheet_name='Corr')
 
     for index, row in trade_off_df.iterrows():
-        if row['generation'] in [1, 100, 200, 300, 400]:
-            set_id(row['generation'])
+        if row['Column1'] in [33389, 3503, 6725]:
+            set_id(int(row['generation']))
 
             parameters = {
                 'HGT': row['HGT'],
@@ -190,6 +179,3 @@ if __name__ == '__main__':
                 'LAS': row['LAS']
             }
             run_leaflet_contact(parameters.values())
-            # problem = init_procedure(param_array=parameters.values())
-            # problem.run_procedure(parameters.values())
-
