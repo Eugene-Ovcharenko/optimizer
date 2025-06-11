@@ -26,7 +26,11 @@ now = now[:-3]
 
 pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/abaqusWF/'
 path_utils = str(pathlib.Path(__file__).parent.resolve())
-
+path_project = path_utils[:-6]
+if os.sys.platform == 'win32':
+    pathToAbaqus = pathToAbaqus.replace('\\','/')
+    path_utils = path_utils.replace('\\','/')
+    path_project = path_project.replace('\\','/')
 
 # procedure parameters class
 class Procedure:
@@ -80,11 +84,11 @@ class Procedure:
                         pcd = o3d.geometry.PointCloud()
                         pcd.points = o3d.utility.Vector3dVector(points.T)
                         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.5 * k)
-                        _ = o3d.io.write_triangle_mesh('./utils/geoms/temp_' + '.ply', mesh, write_vertex_normals=True)
+                        _ = o3d.io.write_triangle_mesh(path_utils+'/geoms/temp.ply', mesh, write_vertex_normals=True)
 
-                        mesh = trimesh.load_mesh('./utils/geoms/temp_' + '.ply')
+                        mesh = trimesh.load_mesh(path_utils+'/geoms/temp.ply')
                         mesh.fix_normals()  # fix wrong normals
-                        mesh.export('./utils/geoms/temp_' + '.stl')
+                        mesh.export(path_utils+'/geoms/temp.stl')
 
                         flag_calk_k = False
                     except:
@@ -122,12 +126,14 @@ class Procedure:
                         message = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
                         outFEATime = datetime.datetime.now() - tt1
                     except Exception as e:
+                        os.chdir(path_project)
                         raise e
 
                     # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
                     try:
                         get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb', cpus=self.cpus)
                     except:
+                        os.chdir(path_project)
                         raise 'Odb parse problem'
 
                     try:
@@ -137,6 +143,7 @@ class Procedure:
                         )
                         purgeFiles(endPath, partName, pathToAbaqus, jobName)
                     except Exception as e:
+                        os.chdir(path_project)
                         raise e
 
                     if LMN_op < 0:
@@ -153,12 +160,14 @@ class Procedure:
                             message = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
                             outFEATime = datetime.datetime.now() - tt1
                         except Exception as e:
+                            os.chdir(path_project)
                             raise e
 
                         # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
                         try:
                             get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb', cpus=self.cpus)
                         except:
+                            os.chdir(path_project)
                             raise 'Odb parse problem'
 
                         try:
@@ -169,6 +178,7 @@ class Procedure:
                             )
                             purgeFiles(endPath, partName, pathToAbaqus, jobName)
                         except Exception as e:
+                            os.chdir(path_project)
                             raise e
 
                         change_direction()
@@ -241,12 +251,12 @@ class Procedure:
                         pcd = o3d.geometry.PointCloud()
                         pcd.points = o3d.utility.Vector3dVector(points.T)
                         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.5 * k)
-                        _ = o3d.io.write_triangle_mesh(path_utils + '/geoms/temp_' + '.ply', mesh,
+                        _ = o3d.io.write_triangle_mesh(path_utils+'/geoms/temp.ply', mesh,
                                                        write_vertex_normals=True)
 
-                        mesh = trimesh.load_mesh(path_utils + '/geoms/temp_' + '.ply')
+                        mesh = trimesh.load_mesh(path_utils+'/geoms/temp.ply')
                         mesh.fix_normals()  # fix wrong normals
-                        mesh.export(path_utils + '/geoms/temp_' + '.stl')
+                        mesh.export(path_utils+'/geoms/temp.stl')
 
                         flag_calk_k = False
                     except:
@@ -285,12 +295,14 @@ class Procedure:
                     message = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
                     outFEATime = datetime.datetime.now() - tt1
                 except Exception as e:
+                    os.chdir(path_project)
                     raise e
 
                 # парсим odb, считываем поля, считаем максимумы и площадь открытия, пишем в outFileName
                 try:
                     get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
                 except Exception as e:
+                    os.chdir(path_project)
                     raise f'Odb parse problem. Error: {e}'
 
                 try:
@@ -312,11 +324,13 @@ class Procedure:
                         message = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
                         outFEATime = datetime.datetime.now() - tt1
                     except Exception as e:
+                        os.chdir(path_project)
                         raise e
 
                     try:  # already in try: and switched direction
                         get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
                     except Exception as e:
+                        os.chdir(path_project)
                         raise f'Odb parse problem. Reverse direction! Error: {e}'
 
                     try:
@@ -326,6 +340,7 @@ class Procedure:
                         )
                         purgeFiles(endPath, partName, pathToAbaqus, jobName)
                     except:
+                        os.chdir(path_project)
                         raise e
                     delta = datetime.datetime.now() - tt1
                     raise e

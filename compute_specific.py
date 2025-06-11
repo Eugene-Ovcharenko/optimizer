@@ -8,6 +8,8 @@ import open3d as o3d
 import trimesh
 import pathlib
 from random import random
+import hydra
+from omegaconf import DictConfig
 from utils.global_variable import *
 from utils.create_geometry_utils import generateShell
 from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
@@ -27,16 +29,16 @@ def run_leaflet_contact(params):
         THK = 0.3
     reset_direction()
     ID = get_id()
-    DIA = 29 - 2 * 1.5
-    Lift = 0
-    EM = 1.88 # Formlabs elastic 50A
-    mesh_step = get_mesh_step()
     baseName = get_base_name()
-    tangent_behavior = 1
-    normal_behavior = 0.2
-    SEC = 119
-    Dens = 1.02e-9
-    MaterialName = 'FormLabs Elasctic 50A'
+    DIA = get_DIA()
+    Lift = get_Lift()
+    EM = get_EM()  # Formlabs elastic 50A
+    mesh_step = get_mesh_step()
+    tangent_behavior = get_tangent_behavior()
+    normal_behavior = get_normal_behavior()
+    SEC = get_SEC()
+    Dens = get_density()
+    MaterialName = get_material_name()
     PressType = get_valve_position()  # can be 'vent'
     fileName = baseName + '.inp'
     pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
@@ -75,7 +77,6 @@ def run_leaflet_contact(params):
     tt2 = datetime.datetime.now()
     message = 'done'
 
-
     del mesh
     pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/utils/abaqusWF/'
     inpFileName = str(pathlib.Path(__file__).parent.resolve()) + str('/utils/inps/') + f'{get_base_name()}_{ID}'
@@ -92,13 +93,13 @@ def run_leaflet_contact(params):
         press_overclosure='linear', tangent_behavior=tangent_behavior,
         normal_behavior=normal_behavior
     )
-    run_abaqus(pathToAbaqus.replace('\\','/'), jobName, inpFileName, 3)
-    get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
-
-    endPath = pathToAbaqus + 'results/'
-    LMN_op, LMN_cl, Smax, VMS, perf_index, heli = read_data(
-        pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName
-    )
+    # run_abaqus(pathToAbaqus.replace('\\','/'), jobName, inpFileName, 3)
+    # get_history_output(pathName=pathToAbaqus, odbFileName=jobName + '.odb')
+    #
+    # endPath = pathToAbaqus + 'results/'
+    # LMN_op, LMN_cl, Smax, VMS, perf_index, heli = read_data(
+    #     pathToAbaqus=pathToAbaqus, endPath=endPath, partName=partName
+    # )
     #     purgeFiles(endPath, partName, pathToAbaqus, jobName)
     # except Exception as e:
     #     change_direction()
@@ -153,22 +154,34 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-if __name__ == '__main__':
-    from utils.global_variable import set_mesh_step, set_base_name
-    set_mesh_step(0.4)
-    set_base_name('opt_geom')
-    set_s_lim(3.23)  # Formlabs elastic 50A
-    set_cpus(3)
-    typeof = 'Contact'
-    set_problem_name('leaflet_contact')
-    set_percent(0)
-    import pandas as pd
+config_name='config_leaf_NSGA2_jValve1_2.yaml'
 
-    trade_off_df = pd.read_excel(os.path.join('inps','Обработка данных на основе History_ed (1.1).xlsx'), sheet_name='Corr')
+@hydra.main(config_path="configuration", config_name=config_name, version_base=None)
+def main(cfg:DictConfig) -> None:
+
+    set_cpus(cfg.Abaqus.abq_cpus)
+    set_tangent_behavior(cfg.Abaqus.tangent_behavior)
+    set_normal_behavior(cfg.Abaqus.normal_behavior)
+
+    set_DIA(float(cfg.problem_definition.DIA))
+    set_Lift(float(cfg.problem_definition.Lift))
+    set_SEC(float(cfg.problem_definition.SEC))
+    set_EM(float(cfg.problem_definition.EM))
+    set_density(float(cfg.problem_definition.Dens))
+    set_material_name(cfg.problem_definition.material_name)
+    set_mesh_step(float(cfg.problem_definition.mesh_step))
+    set_valve_position(cfg.problem_definition.position)
+    set_problem_name(cfg.problem_definition.problem_name)
+    set_base_name(cfg.problem_definition.name)
+    set_s_lim(float(cfg.problem_definition.s_lim))
+    set_global_path(str(pathlib.Path(__file__).parent.resolve()))
+    set_material_csv_path(str(cfg.problem_definition.material_csv_path))
+
+    trade_off_df = pd.read_excel(os.path.join('results/jvalve','history.xlsx'), sheet_name='Sheet1')
 
     for index, row in trade_off_df.iterrows():
-        if row['Column1'] in [33389, 3503, 6725]:
-            set_id(int(row['generation']))
+        if row['Column1'] in [949, 1038, 1126, 1214, 1304]:
+            set_id(f'{row["generation"]}_{row["Column1"]}')
 
             parameters = {
                 'HGT': row['HGT'],
@@ -179,3 +192,7 @@ if __name__ == '__main__':
                 'LAS': row['LAS']
             }
             run_leaflet_contact(parameters.values())
+
+
+if __name__ == '__main__':
+    main()

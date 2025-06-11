@@ -26,7 +26,7 @@ from utils.global_variable import *
 from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.visualize import *
 
-config_name = 'config_leaf_NSGA2_jValve1_1'
+config_name = 'config_leaf_NSGA2_jValve1_2'
 
 class MultiStreamHandler:
     """
@@ -632,9 +632,8 @@ def main(cfg:DictConfig) -> None:
     if not restore_state:
         basic_folder_path = create_results_folder(base_folder='results')
     else:
-        basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', '007_14_01_2025')
-        last_gen = 10
-
+        basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', 'jvalve')
+        last_gen = 20
     print(f"folder path > {basic_folder_path}")
 
     for file in glob('./*.rpy*'):
@@ -707,7 +706,7 @@ def main(cfg:DictConfig) -> None:
 
     try:
         # result storage
-        history_df, X, F, G, CV, pop = extract_optimization_results(res, problem, basic_folder_path)
+        history_df, X, F, G, CV, pop = extract_optimization_results(algorithm.result(), problem, basic_folder_path)
         history_df.to_csv(os.path.join(basic_folder_path, 'history.csv'))
         X.to_csv(os.path.join(basic_folder_path, 'X.csv'))
         F.to_csv(os.path.join(basic_folder_path, 'F.csv'))
