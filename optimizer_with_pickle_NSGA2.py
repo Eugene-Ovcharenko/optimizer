@@ -23,6 +23,7 @@ from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 
 from utils.global_variable import *
+from utils.parce_cfg import parce_cfg
 from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.visualize import *
 
@@ -600,31 +601,14 @@ def main(cfg:DictConfig) -> None:
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
 
-    parameters = {k: tuple(v) for k, v in cfg.parameters.items()}
-    objectives = cfg.objectives
+    parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
-    print("\nConverted parameters (as tuples):")
+    print("\nRead parameters :")
     print(parameters)
-    print("\nObjectives:")
+    print("\nRead Objectives:")
     print(objectives)
-
-    set_cpus(cfg.Abaqus.abq_cpus)
-    set_tangent_behavior(cfg.Abaqus.tangent_behavior)
-    set_normal_behavior(cfg.Abaqus.normal_behavior)
-
-    set_DIA(float(cfg.problem_definition.DIA))
-    set_Lift(float(cfg.problem_definition.Lift))
-    set_SEC(float(cfg.problem_definition.SEC))
-    set_EM(float(cfg.problem_definition.EM))
-    set_density(float(cfg.problem_definition.Dens))
-    set_material_name(cfg.problem_definition.material_name)
-    set_mesh_step(float(cfg.problem_definition.mesh_step))
-    set_valve_position(cfg.problem_definition.position)
-    set_problem_name(cfg.problem_definition.problem_name)
-    set_base_name(cfg.problem_definition.name)
-    set_s_lim(float(cfg.problem_definition.s_lim))
-    set_global_path(str(pathlib.Path(__file__).parent.resolve()))
-    set_material_csv_path(str(cfg.problem_definition.material_csv_path))
+    print("\nRead Constraints:")
+    print(constraints)
 
     restore_state = False
 
@@ -646,7 +630,6 @@ def main(cfg:DictConfig) -> None:
     logger.info("Starting optimization...")
 
     set_id(0)
-    constraints = []
 
     # problem initialization
     problem = Problem(parameters, objectives, constraints)

@@ -1,7 +1,8 @@
 import os
 import csv
 import numpy as np
-from utils.global_variable import get_direction, get_material_csv_path, get_global_path
+from utils.global_variable import get_direction, get_material_csv_path,\
+    get_global_path, get_material_type, get_e_coeffs, get_poisson_coeffs
 
 
 def _read_csv_data() -> list:
@@ -135,9 +136,9 @@ def write_inp_shell(
     fileID.write('*Nset, nset=FixedSet, instance=%s-1\n' % (partName))
     for i in np.arange(0, len(BCfix)):
         if np.mod(i, 16) != 0:
-            fileID.write('\t%d,' % (BCfix[i] + 1))
+            fileID.write('\t%6d,' % (BCfix[i] + 1))
         else:
-            fileID.write('\t%d\n' % (BCfix[i] + 1))
+            fileID.write('\t%6d\n' % (BCfix[i] + 1))
     if get_direction().lower() == 'direct':
         fileID.write('\n*Elset, elset=ElSet_1_SNEG, instance=%s-1, generate\n' % (partName))
         fileID.write('\t1,\t%d,\t1\n' % (len(Elements)))
@@ -343,6 +344,9 @@ def write_inp_contact(
     fileID.write('** PARTS\n')
     fileID.write('**\n')
     fileID.write('*Part, name=%s\n' % (partName))
+    if get_material_type().lower() == 'ortho':
+        fileID.write('*Orientation, name=MaterialOrientation, system=CYLINDRICAL\n')
+        fileID.write(' 1, 0, 0\n 0, 1, 0\n 0, 0, 1\n')
     fileID.write('*Node\n')
     for i in np.arange(0, len(Nodes)):
         fileID.write('\t%d' % (i + 1))
@@ -362,7 +366,10 @@ def write_inp_contact(
     fileID.write('*Elset, elset=Set-2, generate\n')
     fileID.write('\t%d,\t%d,\t%d\n' % (1, len(Elements), 1))
     fileID.write('** Section: Section-1-Set-2\n')
-    fileID.write('*Shell Section, elset=Set-2, material=%s, offset=SPOS\n%f, 9\n*End Part\n' % (MaterialName, THC))
+    fileID.write('*Shell Section, elset=Set-2, material=%s, offset=SPOS' % MaterialName)
+    if get_material_type().lower() == 'ortho':
+        fileID.write(', orientation=MaterialOrientation')
+    fileID.write('\n %f, 9\n*End Part\n' % THC)
     fileID.write('**\n')
 
     fileID.write('**\n')
@@ -375,21 +382,21 @@ def write_inp_contact(
     fileID.write('**\n')
     fileID.write('*Instance, name=%s-2, part=%s\n' % (partName, partName))
     fileID.write('0., 0., 0.\n')
-    fileID.write('0., 0., 0., 0., 0., -1, 120.\n')
+    fileID.write('0., 0., 0., 0., 0., -1., 120.\n')
     fileID.write('*End Instance\n')
     fileID.write('**\n')
     fileID.write('*Instance, name=%s-3, part=%s\n' % (partName, partName))
     fileID.write('0., 0., 0.\n')
-    fileID.write('0., 0., 0., 0., 0., 1, 120.\n')
+    fileID.write('0., 0., 0., 0., 0., 1., 120.\n')
     fileID.write('*End Instance\n')
     fileID.write('**\n')
     for j in range(1, 4):
         fileID.write('\n*Nset, nset=FixedSet_%d, instance=%s-%d\n' % (j, partName, j))
         for i in np.arange(1, len(BCfix) + 1):
             if np.mod(i, 16) != 0:
-                fileID.write('\t%6d,' % (BCfix[i - 1] + 1))
+                fileID.write('%8d, ' % (BCfix[i - 1] + 1))
             else:
-                fileID.write('\t%6d\n' % (BCfix[i - 1] + 1))
+                fileID.write('%8d\n' % (BCfix[i - 1] + 1))
     fileID.write('\n')
     for i in range(1, 4):
         fileID.write('*Elset, elset=_ElSet_%d_SNEG, internal, instance=%s-%d, generate\n' % (i, partName, i))
@@ -502,29 +509,36 @@ def write_inp_contact(
         '    1.1147548,       0.0029311,       1.3544384,       0.0046408,       1.3838336,       0.0030532,       1.4041841,       0.0029311\n')
     fileID.write('    1.4471462,       0.0032974,       1.6981357,       0.0034664,       1.7139638,       0.0034664\n')
 
-    if Emod != -1:
-        fileID.write('**\n')
-        fileID.write('** MATERIALS\n')
-        fileID.write('**\n')
-        fileID.write('*Material, name=%s\n' % (MaterialName))
+    fileID.write('**\n' % ())
+    fileID.write('** MATERIALS\n' % ())
+    fileID.write('**\n' % ())
+    if get_material_type().lower() == 'linear':
+        fileID.write('*Material, name=%s\n' % MaterialName)
         fileID.write('*Density\n')
-        fileID.write(' %.2e,\n' % (Dens))
+        fileID.write(' %.2e,\n' % Dens)
         fileID.write('*Elastic\n')
         fileID.write('%f, 0.495\n' % (Emod))
-    else:
-        ## material properties
-        fileID.write('**\n' % ())
-        fileID.write('** MATERIALS\n' % ())
-        fileID.write('**\n' % ())
-        fileID.write('*Material, name=%s\n' % (MaterialName))
-        fileID.write('*Density\n' % ())
-        fileID.write(' 1e-09,\n' % ())
-        fileID.write('*Hyperelastic, n=2, reduced polynomial, test data input, poisson=0.495\n' % ())
+    elif get_material_type().lower() == 'polynomial':
+        fileID.write('*Material, name=%s\n' % MaterialName)
+        fileID.write('*Density\n')
+        fileID.write(' %.2e,\n' % Dens)
+        fileID.write('*Hyperelastic, n=2, reduced polynomial, test data input, poisson=%.3f\n' % get_poisson_coeff())
         fileID.write('*Uniaxial Test Data\n' % ())
         material_uniaxial_data = _read_csv_data()
         for strain, stress in material_uniaxial_data:
-            # форматирование под вашу спецификацию
             fileID.write(f'   {strain:.3f}, {stress:.2f}\n')
+    elif get_material_type().lower() == 'ortho':
+        fileID.write('*Material, name=%s\n' % MaterialName)
+        fileID.write('*Density\n')
+        fileID.write(' %.2e,\n' % Dens)
+        fileID.write('*Elastic,  type=ENGINEERING CONSTANTS\n')
+        fileID.write(' %.3f, %.3f, %.3f,  %.3f, %.3f, %.3f, '
+                     % (get_e_coeffs()[0], get_e_coeffs()[1], get_e_coeffs()[2],
+                        get_poisson_coeffs()[0], get_poisson_coeffs()[1], get_poisson_coeffs()[2]))
+        G1 = get_e_coeffs()[0] / (2 * (1 + get_poisson_coeffs()[0]))
+        G2 = get_e_coeffs()[1] / (2 * (1 + get_poisson_coeffs()[1]))
+        G3 = get_e_coeffs()[2] / (2 * (1 + get_poisson_coeffs()[2]))
+        fileID.write(' %.3f, %.3f,\n %.3f\n' % (G1, G2, G3))
 
     fileID.write('** \n')
     fileID.write('** INTERACTION PROPERTIES\n')

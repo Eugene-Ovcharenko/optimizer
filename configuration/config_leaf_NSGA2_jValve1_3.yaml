@@ -1,45 +1,45 @@
 parameters:
-  HGT: [10, 15.5]
-  Lstr: [0, 1]
-  THK: [0.25, 0.6]
-  ANG: [-10, 10]
+  HGT: [13.5, 13.5]
+  Lstr: [5, 5]
+  THK: [0.16, 0.16]
+  ANG: [-15, 15]
   CVT: [0.1, 0.8]
-  LAS: [0.2, 1.0]
+  LAS: [0.1, 1.0]
 
 objectives:
-  - -LMN_open^2
+  - 1 - LMN_open
   - LMN_closed
   - Slim - Smax
-  - -1/(HELI^2)
+  - HELI
 
 problem_definition:
-  name: test_Jvalve
+  name: JValve_27mm
   position: mitr
   problem_name: leaflet_contact
-  DIA: 26
+  DIA: 25.9
   Lift: 0
-  SEC: 119
+  SEC: 116
   mesh_step: 0.4
   material:
     material_definition_type: ortho
-    material_name: Ortho material
+    material_name: JValve_material
     poisson_coeff: 0.495
-    Dens: 1.02e-9
-    EM: 1.88
-    s_lim: 9.9
-    material_csv_path: bp.csv
+    EM: 60
+    s_lim: 10
+    Dens: 1e-9
+    material_csv_path: JValve_material.csv
     ortho_coeffs_E:
-      - 20
+      - 10
       - 60
       - 60
     ortho_coeffs_poisson:
       - 0.3
       - 0.3
       - 0.3
-      
+
 Abaqus:
-  abq_cpus: 3
-  tangent_behavior: 1
+  abq_cpus: 6
+  tangent_behavior: 0.2
   normal_behavior: 0.2
 
 
@@ -51,12 +51,12 @@ optimizer:
   crossover_eta: 50
   mutation_eta: 100
   termination_parameters:
-    xtol: 1e-4
-    cvtol: 1e-6
+    xtol: 0.00000001
+    cvtol: 0.000001
     ftol: 0.0025
     period: 5
-    n_max_gen: 2000
-    n_max_evals: 100000
+    n_max_gen: 200
+    n_max_evals: 2000
 
 hydra:
   run:

@@ -1,3 +1,6 @@
+import sys
+from typing import Tuple, Any, List, Union
+
 class Params:
     """
     A structured parameter container for simulation job configuration and control.
@@ -46,11 +49,15 @@ class Params:
     abq_tang_beh = 0
     abq_norm_beh = 0
     global_path = ''
+    material_type = ''
+    e_coeffs = []
+    poisson_coeffs = []
     def __init__(self,
                  percent, problem_name, id, cpus, mesh_step,
                  baseName, Slim, direction, valve_position,
                  DIA, Lift, SEC, EM, density, material_name, material_csv_path,
-                 abq_tangent_behavior, abq_normal_behavior, global_path):
+                 abq_tangent_behavior, abq_normal_behavior, global_path, material_type,
+                 e_coeffs, poisson_coeffs):
         self.percent = percent
         if (
                 problem_name.lower() == 'leaflet_single'
@@ -83,6 +90,9 @@ class Params:
         self.abq_tang_beh = abq_tangent_behavior
         self.abq_norm_beh = abq_normal_behavior
         self.global_path = global_path
+        self.material_type = material_type
+        self.e_coeffs = e_coeffs
+        self.poisson_coeffs = poisson_coeffs
 
 
 params = Params(
@@ -104,7 +114,10 @@ params = Params(
     material_csv_path='no path',
     abq_tangent_behavior=1,
     abq_normal_behavior=0.2,
-    global_path=''
+    global_path='',
+    material_type='linear',
+    e_coeffs=[],
+    poisson_coeffs=[]
 )
 
 
@@ -181,6 +194,22 @@ def set_global_path(val: str):
     params.global_path = val
 
 
+def set_material_type(val: str):
+    if val.lower() in ['linear', 'polynomial', 'ortho']:
+        params.material_type = val
+    else:
+        print(f'\t\t\tParameters setter -> material_type: wrong parameter {val}.'
+              f'Allowed:  [\'linear\', \'polynomial\', \'ortho\']')
+        sys.exit()
+
+
+def set_e_coeffs(val: list):
+    params.e_coeffs = val
+
+def set_poisson_coeffs(val: Union[float, list]):
+    params.poisson_coeffs = val
+
+
 # Getters
 
 def get_id() -> int:
@@ -255,6 +284,16 @@ def get_normal_behavior() -> float:
 
 def get_global_path() -> str:
     return params.global_path
+
+
+def get_material_type() -> str:
+    return params.material_type
+
+def get_e_coeffs() -> list[float]:
+    return params.e_coeffs
+
+def get_poisson_coeffs() -> Union[list[float], float]:
+    return params.poisson_coeffs
 
 
 def reset_direction() -> None:

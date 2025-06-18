@@ -14,6 +14,8 @@ from utils.global_variable import *
 from utils.create_geometry_utils import generateShell
 from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
 from utils.create_input_files import write_inp_contact
+from utils.gaussian_curvature_v2 import evaluate_developability
+from utils.parce_cfg import parce_cfg
 from utils.fea_results_utils import read_data
 from utils.compute_utils import run_abaqus, get_history_output
 import os
@@ -76,6 +78,8 @@ def run_leaflet_contact(params):
                                                   pointsHullLower=pointsHullLower, meshStep=mesh_step)
     tt2 = datetime.datetime.now()
     message = 'done'
+
+    # evaluate_developability(points_inner=shellNode, shell_elements=shellEle, visualize=True, method='pca')
 
     del mesh
     pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/utils/abaqusWF/'
@@ -154,34 +158,18 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2_jValve1_2.yaml'
+config_name='config_leaf_NSGA2.yaml'
 
 @hydra.main(config_path="configuration", config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:
 
-    set_cpus(cfg.Abaqus.abq_cpus)
-    set_tangent_behavior(cfg.Abaqus.tangent_behavior)
-    set_normal_behavior(cfg.Abaqus.normal_behavior)
-
-    set_DIA(float(cfg.problem_definition.DIA))
-    set_Lift(float(cfg.problem_definition.Lift))
-    set_SEC(float(cfg.problem_definition.SEC))
-    set_EM(float(cfg.problem_definition.EM))
-    set_density(float(cfg.problem_definition.Dens))
-    set_material_name(cfg.problem_definition.material_name)
-    set_mesh_step(float(cfg.problem_definition.mesh_step))
-    set_valve_position(cfg.problem_definition.position)
-    set_problem_name(cfg.problem_definition.problem_name)
-    set_base_name(cfg.problem_definition.name)
-    set_s_lim(float(cfg.problem_definition.s_lim))
-    set_global_path(str(pathlib.Path(__file__).parent.resolve()))
-    set_material_csv_path(str(cfg.problem_definition.material_csv_path))
+    parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
     trade_off_df = pd.read_excel(os.path.join('results/jvalve','history.xlsx'), sheet_name='Sheet1')
 
     for index, row in trade_off_df.iterrows():
-        if row['Column1'] in [949, 1038, 1126, 1214, 1304]:
-            set_id(f'{row["generation"]}_{row["Column1"]}')
+        if row['Unnamed: 0'] in [348]:
+            set_id(f'{row["generation"]}_{row["Unnamed: 0"]}')
 
             parameters = {
                 'HGT': row['HGT'],
