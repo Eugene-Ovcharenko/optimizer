@@ -59,6 +59,70 @@ The repository contains several visualization functions to analyze the optimizat
 
 Necessary dependencies are listed in `requirements.txt`.
 
+
+## Configuration file
+
+Configure optimization with `.yaml` files located in `./configuration` folder.
+
+List of parameters:
+ - `parameters:` - **mandatory**
+   - `param 1: [min, max]`
+   - `param 2: [min, max]`
+   - .....
+   - `param N: [min, max]`
+ - `objectives:` - **mandatory**
+   - `- objective 1`
+   - `- objective 2`
+   - .....
+   - `- objective N`
+ - `constrains:` - optional
+   - `- constr 1`
+   - `- constr 2`
+   - .....
+   - `- constr N`
+ - `problem_definition:`
+   - `name: XXXX` - *XXXX* - name of your problem. Optional.
+   - `position: XXXX` - **mandatory!** *XXXX* may be in `[ao, mitr]`. This affect to boundary conditions
+   - `problem_name: XXXX` - **mandatory!** *XXXX* may be `[leaflet_contact, leaflet_single, test]`
+   - `DIA: XX` - *XX* is diameter of lealet apparatus. Measured in mm.
+   - `Lift: XX` - how far leaflet would be lifted to simulate frame. Fully optional, by default assumed by 0 mm
+   - `SEC: XX` - sector of circle occupied by one leaflet
+   - `mesh_step: XX` - size of the mesh. Used in leaflet points generation. Default value - 0.35. More value - coarser mesh
+   - `material:` - **mandatory!** Following part of yaml defining material properties
+     - `material_definition_type: XX` - **mandatory!** Define type of used material model: `[linear, polynomial, ortho`
+     - `material_name: XX` - just name of used material, small QoL
+     - `poisson_coeff: XX` - Poisson coefficient. Used with `linear` or `polynomial` model
+     - `Dens: XX` - **mandatory!** Density of material. By default - `1e-9 tonn/mm`
+     - `s_lim: XX` - UTS for material
+     - `material_csv_path: XX` - name of the csv-file located in `./configuration` folder. Used with `polynomial` material model. Format - `stress, strain`
+     - `ortho_coeffs_E:` - this is array of Young's modulus for `ortho` material model. Using cylindrical coodrinate system in this point 
+       - ` - E1` - Young's modulus in `radial` direction
+       - ` - E1` - Young's modulus in `circumferential` direction
+       - ` - E1` - Young's modulus in `Z` direction
+     - `ortho_coeffs_poisson:` - this is array of Poisson coefficients for `ortho` material model. Using cylindrical coodrinate system in this point 
+       - ` - p1` - Poisson coefficients in `radial` direction
+       - ` - p2` - Poisson coefficients in `circumferential` direction
+       - ` - p3` - Poisson coefficients in `Z` direction
+   - `Abaqus:` - FEA related part of configuration file
+     - `abq_cpus: XX` - how much cpus were used for FEA
+     - `tangent_behavior: XX` - tangential stiffness used in contact problem `leaflet_contact`
+     - `normal_behavior: XX` - normal stiffness used in contact problem `leaflet_contact`
+   - `optimizer:` - optimizer-related parameters. everything here is **mandatory!**. Read PyMoo manuals
+     - `pop_size: XX`
+     - `offsprings: XX`
+     - `crossover_chance: XX`
+     - `mutation_chance: XX`
+     - `crossover_eta: XX`
+     - `mutation_eta: XX`
+     - `termination_parameters:`
+       - `xtol: XX`
+       - `cvtol: XX`
+       - `ftol: XX`
+       - `period: XX`
+       - `n_max_gen: XX`
+       - `n_max_evals: XX`
+ 
+    You can add additional **Hydra**-related parameters below.
 ---
 
 ## <font color="yellow">TODO</font>
