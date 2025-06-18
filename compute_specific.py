@@ -158,7 +158,7 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2.yaml'
+config_name='config_leaf_NSGA2_jValve1_3.yaml'
 
 @hydra.main(config_path="configuration", config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:
