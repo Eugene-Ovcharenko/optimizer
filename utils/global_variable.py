@@ -39,9 +39,16 @@ class Params:
     Slim = 0
     direction = 'direct'
     valve_position = 'ao'
+    HGT = 0
+    THK = 0
+    ANG = 0
+    Lstr = 0
+    LAS = 0
+    CVT = 0
     DIA = 0
     Lift = 0
     SEC = 0
+    FCVT = 0
     EM = 0
     density = 1.02e-9
     material_name = 'test material'
@@ -52,12 +59,13 @@ class Params:
     material_type = ''
     e_coeffs = []
     poisson_coeffs = []
+    parameters_list = []
     def __init__(self,
                  percent, problem_name, id, cpus, mesh_step,
                  baseName, Slim, direction, valve_position,
                  DIA, Lift, SEC, EM, density, material_name, material_csv_path,
                  abq_tangent_behavior, abq_normal_behavior, global_path, material_type,
-                 e_coeffs, poisson_coeffs):
+                 e_coeffs, poisson_coeffs, FCVT, parameters_list, HGT, THK, ANG, Lstr, LAS, CVT):
         self.percent = percent
         if (
                 problem_name.lower() == 'leaflet_single'
@@ -83,6 +91,12 @@ class Params:
         self.DIA = DIA
         self.Lift = Lift
         self.SEC = SEC
+        self.HGT = HGT
+        self.THK = THK
+        self.ANG = ANG
+        self.Lstr = Lstr
+        self.LAS = LAS
+        self.CVT = CVT
         self.EM = EM
         self.density = density
         self.material_name = material_name
@@ -93,6 +107,8 @@ class Params:
         self.material_type = material_type
         self.e_coeffs = e_coeffs
         self.poisson_coeffs = poisson_coeffs
+        self.FCVT = FCVT
+        self.parameters_list = parameters_list
 
 
 params = Params(
@@ -105,9 +121,6 @@ params = Params(
     Slim=0,
     direction='direct',
     valve_position='ao',
-    DIA=29,
-    Lift=0,
-    SEC=120,
     EM=1.48,
     density=1e-9,
     material_name='Change it! Material name',
@@ -117,21 +130,52 @@ params = Params(
     global_path='',
     material_type='linear',
     e_coeffs=[],
-    poisson_coeffs=[]
+    poisson_coeffs=[],
+    parameters_list=[],
+    FCVT=0.5,
+    DIA=29,
+    Lift=0,
+    SEC=120,
+    HGT=10,
+    THK=0.5,
+    ANG=-10,
+    Lstr=1,
+    LAS=0.5,
+    CVT=0.5
 )
 
-
 # Setters
+def set_FCVT(val: float):
+    params.FCVT = val
+
 def set_DIA(val: float):
     params.DIA = val
-
 
 def set_Lift(val: float):
     params.Lift = val
 
-
 def set_SEC(val: float):
     params.SEC = val
+
+def set_HGT(val: float):
+    params.DIA = val
+
+def set_THK(val: float):
+    params.THK = val
+
+
+def set_ANG(val: float):
+    params.ANG = val
+
+
+def set_Lstr(val: float):
+    params.Lstr = val
+
+def set_LAS(val: float):
+    params.LAS = val
+
+def set_CVT(val: float):
+    params.CVT = val
 
 
 def set_EM(val: float):
@@ -209,6 +253,9 @@ def set_e_coeffs(val: list):
 def set_poisson_coeffs(val: Union[float, list]):
     params.poisson_coeffs = val
 
+def set_parameters_list(val: Union[list]):
+    params.parameters_list = val
+
 
 # Getters
 
@@ -250,6 +297,9 @@ def get_valve_position() -> str:
 def get_DIA() -> float:
     return params.DIA
 
+def get_FCVT() -> float:
+    return params.FCVT
+
 
 def get_Lift() -> float:
     return params.Lift
@@ -257,6 +307,29 @@ def get_Lift() -> float:
 
 def get_SEC() -> float:
     return params.SEC
+
+
+def get_HGT() -> float:
+    return params.HGT
+
+def get_THK() -> float:
+    return params.THK
+
+
+def get_ANG() -> float:
+    return params.ANG
+
+
+def get_Lstr() -> float:
+    return params.Lstr
+
+
+def get_LAS() -> float:
+    return params.LAS
+
+
+def get_CVT() -> float:
+    return params.CVT
 
 
 def get_EM() -> float:
@@ -294,6 +367,9 @@ def get_e_coeffs() -> list[float]:
 
 def get_poisson_coeffs() -> Union[list[float], float]:
     return params.poisson_coeffs
+
+def get_parameters_list() -> Union[list[str], float]:
+    return params.parameters_list
 
 
 def reset_direction() -> None:

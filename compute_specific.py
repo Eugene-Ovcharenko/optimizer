@@ -12,7 +12,7 @@ import hydra
 from omegaconf import DictConfig
 from utils.global_variable import *
 from utils.create_geometry_utils import generateShell
-from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
+from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud as createGeometry
 from utils.create_input_files import write_inp_contact
 from utils.gaussian_curvature_v2 import evaluate_developability
 from utils.parce_cfg import parce_cfg
@@ -76,10 +76,17 @@ def run_leaflet_contact(params):
     shellNode, shellEle, fixed_bc = generateShell(points=mesh.vertices, elements=mesh.faces,
                                                   pointsInner=pointsInner,
                                                   pointsHullLower=pointsHullLower, meshStep=mesh_step)
+    with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
+        for point in shellNode:
+            writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+    with open(f'./inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
+        for point in shellEle:
+            writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+
     tt2 = datetime.datetime.now()
     message = 'done'
 
-    # evaluate_developability(points_inner=shellNode, shell_elements=shellEle, visualize=True, method='pca')
+    # evaluate_developability(points_inner=shellNode, shell_elements=shellEle, visualize=True, method="pca")
 
     del mesh
     pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/utils/abaqusWF/'
@@ -158,7 +165,7 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2_jValve1_3.yaml'
+config_name='config_leaf_NSGA2_koka.yaml'
 
 @hydra.main(config_path="configuration", config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:

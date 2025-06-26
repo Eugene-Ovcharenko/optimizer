@@ -1,0 +1,60 @@
+parameters:
+  HGT: [18, 19]
+  THK: [0.39, 0.5]
+  ANG: [-10, 10]
+  SEC: [118, 119]
+  CVT: [0.1, 0.8]
+  LAS: [0.1, 2.0]
+  FCVT: [0, 1]
+
+objectives:
+  - -LMN_open^2
+  - LMN_closed
+  - Slim - Smax
+  - HELI
+
+constraints:
+  - K_max
+
+problem_definition:
+  name: test_KOKA
+  position: ao
+  problem_name: leaflet_contact
+  DIA: 28
+  Lstr: 4.61
+  Lift: 0
+  mesh_step: 0.4
+  material:
+    material_definition_type: linear
+    material_name: bp NeoKor
+    poisson_coeff: 0.495
+    Dens: 1.02e-9
+    EM: 1.88
+    s_lim: 9.9
+
+Abaqus:
+  abq_cpus: 3
+  tangent_behavior: 1
+  normal_behavior: 0.2
+
+
+optimizer:
+  pop_size: 10
+  offsprings: 5
+  crossover_chance: 0.9
+  mutation_chance: 0.3
+  crossover_eta: 50
+  mutation_eta: 100
+  termination_parameters:
+    xtol: 1e-4
+    cvtol: 1e-6
+    ftol: 0.0025
+    period: 5
+    n_max_gen: 2000
+    n_max_evals: 100000
+
+hydra:
+  run:
+    dir: .
+
+

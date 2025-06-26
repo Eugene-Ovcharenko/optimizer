@@ -9,8 +9,7 @@ import trimesh
 import pathlib
 from random import random
 from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
-                                   get_cpus, get_base_name, get_s_lim, get_percent,
-                                   set_dead_objects, get_dead_objects, get_direction,
+                                   get_cpus, get_base_name, get_s_lim, get_direction,
                                    change_direction, get_valve_position)
 from pymoo.problems import get_problem
 from utils.get_history_output import get_history_output as get_history_output

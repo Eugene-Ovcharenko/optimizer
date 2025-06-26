@@ -15,6 +15,7 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
     # check parameters, objectives and constraints
     if hasattr(cfg, 'parameters'):
         parameters = {k: tuple(v) for k, v in cfg.parameters.items()}
+        set_parameters_list(list(parameters.keys()))
     else:
         print('No attr \'parameters\'. Exit')
         error_count += 1
@@ -26,7 +27,7 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
         error_count += 1
 
     if hasattr(cfg, 'constraints'):
-        constraints = cfg.constraints
+        constraints = list(cfg.constraints)
     else:
         print('No attr \'constraints\'. Set empty')
         constraints = []
@@ -51,23 +52,87 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
         set_normal_behavior(0.2)
 
     # check problem-related parameters
-    if hasattr(cfg.problem_definition, 'DIA'):
-        set_DIA(float(cfg.problem_definition.DIA))
-    else:
-        print('No attr \'problem_definition.DIA\'. Set default - 23 mm')
-        set_DIA(23)
+    if 'DIA' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'DIA'):
+            set_DIA(float(cfg.problem_definition.DIA))
+        else:
+            print('No attr \'problem_definition.DIA\'. Set default - 23 mm')
+            set_DIA(23)
 
-    if hasattr(cfg.problem_definition, 'Lift'):
-        set_Lift(float(cfg.problem_definition.Lift))
-    else:
-        print('No attr \'problem_definition.DIA\'. Set default - 0 mm')
-        set_Lift(0.)
+    if 'Lift' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'Lift'):
+                set_Lift(float(cfg.problem_definition.Lift))
+        else:
+            print('No attr \'problem_definition.DIA\'. Set default - 0 mm')
+            set_Lift(0.)
 
-    if hasattr(cfg.problem_definition, 'SEC'):
-        set_SEC(float(cfg.problem_definition.SEC))
-    else:
-        print('No attr \'problem_definition.SEC\'. Set default - 119')
-        set_SEC(119)
+    if 'SEC' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'SEC'):
+                set_SEC(float(cfg.problem_definition.SEC))
+        else:
+            print('No attr \'problem_definition.SEC\'. Set default - 119')
+            set_SEC(119)
+
+    if 'FCVT' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'FCVT'):
+            if 0 <= float(cfg.problem_definition.FCVT) <= 1:
+                set_FCVT(float(cfg.problem_definition.FCVT))
+            else:
+                print('Wrong attr value \'problem_definition.FCVT\'. Exit')
+                error_count += 1
+        else:
+            print('No attr \'problem_definition.FCVT\'. Set default - 0.5')
+            set_FCVT(0.5)
+
+    if 'HGT' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'HGT'):
+            if 0 < float(cfg.problem_definition.HGT):
+                set_HGT(float(cfg.problem_definition.HGT))
+            else:
+                print('Wrong attr value \'problem_definition.HGT\'. Exit')
+                error_count += 1
+        else:
+            print('No attr \'problem_definition.HGT\'. Set default - 10')
+            set_HGT(10)
+
+    if 'THK' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'THK'):
+            if 0 < float(cfg.problem_definition.THK):
+                set_THK(float(cfg.problem_definition.THK))
+            else:
+                print('Wrong attr value \'problem_definition.THK\'. Exit')
+                error_count += 1
+        else:
+            print('No attr \'problem_definition.THK\'. Set default - 0.5')
+            set_THK(0.5)
+
+    if 'ANG' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'ANG'):
+            set_ANG(float(cfg.problem_definition.ANG))
+        else:
+            print('No attr \'problem_definition.ANG\'. Set default - 10')
+            set_ANG(10)
+
+    if 'Lstr' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'Lstr'):
+            set_Lstr(float(cfg.problem_definition.Lstr))
+        else:
+            print('No attr \'problem_definition.Lstr\'. Set default - 1')
+            set_Lstr(1)
+
+    if 'LAS' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'LAS'):
+            set_LAS(float(cfg.problem_definition.LAS))
+        else:
+            print('No attr \'problem_definition.LAS\'. Set default - 1')
+            set_LAS(1)
+
+    if 'CVT' not in parameters.keys():
+        if hasattr(cfg.problem_definition, 'CVT'):
+            set_CVT(float(cfg.problem_definition.CVT))
+        else:
+            print('No attr \'problem_definition.CVT\'. Set default - 0.3')
+            set_CVT(0.3)
 
     if hasattr(cfg.problem_definition, 'mesh_step'):
         set_mesh_step(float(cfg.problem_definition.mesh_step))
@@ -115,7 +180,7 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
                 and hasattr(cfg.problem_definition.material, 'material_csv_path'):
             if cfg.problem_definition.material.EM > 0:
                 print(f"\t\tYou entered positive EM = {cfg.problem_definition.material.EM}."
-                      f" Using linear model. Either delete this row or set -1")
+                      f" Using linear model. Found .csv name, either delete EM row or set -1 to use polynomial model")
                 set_EM(float(cfg.problem_definition.material.EM))
                 set_material_csv_path(str(None))
             else:
@@ -208,6 +273,6 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
         error_count += 1
 
     if error_count > 0:
-        sys.exit()
+        sys.exit("Error count > 1")
 
     return parameters, objectives, constraints

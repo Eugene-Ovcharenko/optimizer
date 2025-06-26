@@ -58,10 +58,7 @@ def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visual
 
     max_curvature = np.max(np.abs(gaussian_curvatures))
     mean_curvature = np.mean(np.abs(gaussian_curvatures))
-    if max_curvature < tolerance:
-        is_developable = 0
-    else:
-        is_developable = max_curvature
+    is_developable = max_curvature < tolerance
 
     curvature_stats = {
         'max_abs_curvature': max_curvature,
@@ -85,26 +82,6 @@ def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visual
         'elements': elements,
         'boundary_vertices': boundary_vertices
     }
-
-    # print("=== АНАЛИЗ РАЗВОРАЧИВАЕМОСТИ ===")
-    # print(f"Разворачиваема: {'ДА' if is_developable else 'НЕТ'}")
-    # print(f"Макс. кривизна: {max_curvature:.6f}")
-    # print(f"Средняя кривизна: {mean_curvature:.6f}")
-    # print(f"95-й процентиль: {curvature_stats['percentile_95']:.6f}")
-    # print(f"Точек с высокой кривизной: {curvature_stats['high_curvature_points']}")
-    # print(f"Граничных точек: {curvature_stats['boundary_points']}")
-    #
-    # quality = unfold_result['quality_metrics']
-    # print(f"\nКачество развертки:")
-    # print(f"Искажение расстояний: {quality['distance_error_mean']:.4f} (макс: {quality['distance_error_max']:.4f})")
-    # print(f"Искажение площадей: {quality['area_error_mean']:.4f} (макс: {quality['area_error_max']:.4f})")
-    #
-    # if not is_developable:
-    #     print(f"\n⚠️ Поверхность НЕ разворачиваема (кривизна {max_curvature:.6f} > {tolerance})")
-    #     if quality['distance_error_max'] > 0.1:
-    #         print(f"   Максимальное искажение: {quality['distance_error_max']:.1%}")
-    # else:
-    #     print(f"\n✅ Поверхность подходит для изготовления из плоского материала")
 
     if visualize:
         _visualize_results(results)
@@ -179,7 +156,6 @@ def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertic
     angle_sums = np.zeros(n_points)
 
     boundary_set = set(boundary_vertices)
-    corner_vertices = _detect_corner_vertices(points, elements, boundary_vertices)
 
     for face in elements:
         idx0, idx1, idx2 = face
@@ -216,19 +192,107 @@ def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertic
         vertex_areas[idx1] += area / 3
         vertex_areas[idx2] += area / 3
 
+    boundary_angle_defects = _compute_boundary_angle_defects(points, elements, boundary_vertices)
+
     for i in range(n_points):
         if vertex_areas[i] > 1e-12:
-            if i in corner_vertices:
-                expected_angle = corner_vertices[i]
-                gaussian_curvs[i] = 0#(expected_angle - angle_sums[i]) / vertex_areas[i]
-            elif i in boundary_set:
-                gaussian_curvs[i] = (np.pi - angle_sums[i]) / vertex_areas[i]
+            if i in boundary_set:
+                expected_angle = boundary_angle_defects.get(i, np.pi)
+                gaussian_curvs[i] = (expected_angle - angle_sums[i]) / vertex_areas[i]
             else:
                 gaussian_curvs[i] = (2 * np.pi - angle_sums[i]) / vertex_areas[i]
 
-            gaussian_curvs[i] = np.clip(gaussian_curvs[i], -2, 2)
+            gaussian_curvs[i] = np.clip(gaussian_curvs[i], -10, 10)
 
     return gaussian_curvs
+
+
+def _compute_boundary_angle_defects(points, elements, boundary_vertices):
+    boundary_set = set(boundary_vertices)
+    boundary_angles = {}
+
+    # Строим граф связности граничных вершин
+    boundary_graph = {}
+    for v in boundary_vertices:
+        boundary_graph[v] = []
+
+    for face in elements:
+        for i in range(3):
+            v1, v2 = face[i], face[(i + 1) % 3]
+            if v1 in boundary_set and v2 in boundary_set:
+                boundary_graph[v1].append(v2)
+                boundary_graph[v2].append(v1)
+
+    # Удаляем дубликаты
+    for v in boundary_graph:
+        boundary_graph[v] = list(set(boundary_graph[v]))
+
+    # Вычисляем углы в исходной 3D поверхности для граничных вершин
+    for v in boundary_vertices:
+        neighbors = boundary_graph[v]
+
+        if len(neighbors) == 2:
+            # Обычная граничная точка
+            p0 = points[v]
+            p1 = points[neighbors[0]]
+            p2 = points[neighbors[1]]
+
+            vec1 = p1 - p0
+            vec2 = p2 - p0
+
+            norm1 = np.linalg.norm(vec1)
+            norm2 = np.linalg.norm(vec2)
+
+            if norm1 > 1e-12 and norm2 > 1e-12:
+                cos_angle = np.clip(np.dot(vec1, vec2) / (norm1 * norm2), -1, 1)
+                exterior_angle = np.arccos(cos_angle)
+                # Для граничной вершины ожидаемая сумма углов равна π минус внешний угол
+                boundary_angles[v] = np.pi - exterior_angle
+            else:
+                boundary_angles[v] = np.pi
+
+        elif len(neighbors) == 1:
+            # Конечная точка границы
+            boundary_angles[v] = np.pi / 2
+
+        elif len(neighbors) > 2:
+            # Точка пересечения нескольких граничных сегментов
+            # Вычисляем сумму внешних углов
+            total_exterior_angle = 0
+            p0 = points[v]
+
+            # Сортируем соседей по углу
+            angles_with_neighbors = []
+            for neighbor in neighbors:
+                vec = points[neighbor] - p0
+                angle = np.arctan2(vec[1], vec[0])  # Проекция на плоскость XY
+                angles_with_neighbors.append((angle, neighbor))
+
+            angles_with_neighbors.sort()
+            sorted_neighbors = [neighbor for _, neighbor in angles_with_neighbors]
+
+            for i in range(len(sorted_neighbors)):
+                n1 = sorted_neighbors[i]
+                n2 = sorted_neighbors[(i + 1) % len(sorted_neighbors)]
+
+                vec1 = points[n1] - p0
+                vec2 = points[n2] - p0
+
+                norm1 = np.linalg.norm(vec1)
+                norm2 = np.linalg.norm(vec2)
+
+                if norm1 > 1e-12 and norm2 > 1e-12:
+                    cos_angle = np.clip(np.dot(vec1, vec2) / (norm1 * norm2), -1, 1)
+                    angle = np.arccos(cos_angle)
+                    total_exterior_angle += angle
+
+            boundary_angles[v] = 2 * np.pi - total_exterior_angle
+
+        else:
+            # Изолированная вершина (не должно происходить на правильной границе)
+            boundary_angles[v] = np.pi
+
+    return boundary_angles
 
 
 def _detect_corner_vertices(points, elements, boundary_vertices):
@@ -549,11 +613,6 @@ def _pca_projection(points):
     U, s, Vt = np.linalg.svd(centered.T, full_matrices=False)
     return centered @ U[:, :2]
 
-# def _pca_flatten(vertices: np.ndarray) -> np.ndarray:
-#     v = vertices - vertices.mean(axis=0)
-#     _, _, Vt = np.linalg.svd(v, full_matrices=False)
-#     return v @ Vt.T[:, :2]
-
 
 def _analyze_quality(points_3d, elements, points_2d):
     distance_errors = []
@@ -611,20 +670,17 @@ def _visualize_results(results):
     ax1.set_zlabel('Z')
 
     ax2 = fig.add_subplot(132)
-    curvatures_clipped = np.clip(curvatures, -5, 5)
-    ax2.tripcolor(points_2d[:, 0], points_2d[:, 1], elements, curvatures_clipped,
-                                    shading="flat", cmap="RdBu_r")
-    # ax2.scatter(points_2d[:, 0], points_2d[:, 1], c='blue', s=1)
-    # boundary_curvature = np.clip(curvatures[boundary_vertices], -5, 5)
-    # ax2.scatter(points_2d[boundary_vertices, 0], points_2d[boundary_vertices, 1], c=boundary_curvature, cmap='RdBu_r', s=20)
-    ax2.set_title('Развертка')
+    ax2.triplot(points_2d[:, 0], points_2d[:, 1], elements, 'b-', alpha=0.3)
+    ax2.scatter(points_2d[:, 0], points_2d[:, 1], c='blue', s=1)
+    boundary_curvature = np.clip(curvatures[boundary_vertices], -5, 5)
+    ax2.scatter(points_2d[boundary_vertices, 0], points_2d[boundary_vertices, 1], c=boundary_curvature, cmap='RdBu_r', s=20)
+    ax2.set_title('Развертка (красные - граница)')
     ax2.set_xlabel('U')
     ax2.set_ylabel('V')
     ax2.axis('equal')
 
     ax3 = fig.add_subplot(133, projection='3d')
     curvatures_clipped = np.clip(curvatures, -5, 5)
-    # curvatures_clipped = np.zeros(len(curvatures))
     scatter = ax3.scatter(points_3d[:, 0], points_3d[:, 1], points_3d[:, 2],
                           c=curvatures_clipped, cmap='RdBu_r', s=20)
     plt.colorbar(scatter, ax=ax3, shrink=0.8)

@@ -4,10 +4,6 @@ import datetime
 import open3d as o3d
 import trimesh
 import pathlib
-from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_step,
-                                   get_cpus, get_base_name, get_s_lim, get_percent,
-                                   reset_direction, get_direction,
-                                   change_direction, get_valve_position)
 from pymoo.problems import get_problem
 from utils.logger_leaflet import log_message
 from utils.global_variable import *
@@ -15,8 +11,9 @@ from utils.compute_utils import get_history_output as get_history_output
 from utils.compute_utils import run_abaqus
 from utils.fea_results_utils import read_data
 from utils.project_utils import purgeFiles
-from utils.create_geometry_utils import generateShell
-from utils.create_geometry_utils import generate_leaflet_pointcloud
+from utils.create_geometry_utils_v2 import generateShell
+from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud
+from utils.gaussian_curvature_v2 import evaluate_developability
 from utils.create_input_files import write_inp_shell, write_inp_contact
 import os
 import os
@@ -219,19 +216,71 @@ class Procedure:
                 baseName = get_base_name() + '_' + now
                 reset_direction()
                 tt1 = datetime.datetime.now()
-                try:
-                    HGT, Lstr, THK, ANG, CVT, LAS = params
-                except:
-                    Lstr, ANG, CVT, LAS = params
-                    HGT = 11
-                    THK = 0.3
-                DIA = get_DIA()
-                Lift = get_Lift()
+
+                if 'HGT' in get_parameters_list():
+                    HGT = params[get_parameters_list().index('HGT')]
+                else:
+                    HGT = get_HGT()
+
+                if 'Lstr' in get_parameters_list():
+                    Lstr = params[get_parameters_list().index('Lstr')]
+                else:
+                    Lstr = get_Lstr()
+
+                if 'THK' in get_parameters_list():
+                    THK = params[get_parameters_list().index('THK')]
+                else:
+                    THK = get_THK()
+
+                if 'ANG' in get_parameters_list():
+                    ANG = params[get_parameters_list().index('ANG')]
+                else:
+                    ANG = get_ANG()
+
+                if 'CVT' in get_parameters_list():
+                    CVT = params[get_parameters_list().index('CVT')]
+                else:
+                    CVT = get_CVT()
+
+                if 'LAS' in get_parameters_list():
+                    LAS = params[get_parameters_list().index('LAS')]
+                else:
+                    LAS = get_LAS()
+
+                if 'DIA' in get_parameters_list():
+                    DIA = params[get_parameters_list().index('DIA')]
+                else:
+                    DIA = get_DIA()
+
+                if 'Lift' in get_parameters_list():
+                    Lift = params[get_parameters_list().index('Lift')]
+                else:
+                    Lift = get_Lift()
+
+                if 'FCVT' in get_parameters_list():
+                    FCVT = params[get_parameters_list().index('FCVT')]
+                else:
+                    FCVT = get_Lift()
+
+                if 'SEC' in get_parameters_list():
+                    SEC = params[get_parameters_list().index('SEC')]
+                else:
+                    SEC = get_SEC()
+
+
+                # try:
+                #     HGT, Lstr, THK, ANG, CVT, LAS = params
+                # except:
+                #     Lstr, ANG, CVT, LAS = params
+                #     HGT = 11
+                #     THK = 0.3
+                # DIA = get_DIA()
+                # Lift = get_Lift()
                 EM = get_EM()  # Formlabs elastic 50A
                 mesh_step = self.mesh_step
                 tangent_behavior = get_tangent_behavior()
                 normal_behavior = get_normal_behavior()
-                SEC = get_SEC()
+
                 Dens = get_density()
                 MaterialName = get_material_name()
                 PressType = get_valve_position()  # can be 'vent'
@@ -239,7 +288,7 @@ class Procedure:
                 try:
                     pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
                         generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.35,
-                                                    ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
+                                                    ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step, FCVT=FCVT)
                 except Exception as e:
                     raise e
 
@@ -275,6 +324,15 @@ class Procedure:
 
                 except Exception as e:
                     raise e
+
+                results = evaluate_developability(
+                    points_inner=shellNode,
+                    shell_elements=shellEle,
+                    visualize=False,
+                    method="pca"
+                )
+
+                K_max = results['is_developable']
 
                 del mesh
 
@@ -347,27 +405,29 @@ class Procedure:
                 del fixed_bc, partName, jobName, endPath, modelName, inpFileName
                 del tt1, tt2
 
-                objectives_dict = {
+                res_dict = {
                     'LMN_open': LMN_op,
                     "LMN_closed": LMN_cl,
                     "Smax": Smax,
                     'HELI': heli,
-                    'VMS': VMS
+                    'VMS': VMS,
+                    'K_max': K_max
                 }
 
-                return {"results": objectives_dict}
+                return {"results": res_dict}
             except Exception as exept:
                 log_message(f'Exception: {exept}')
 
-                objectives_dict = {
+                res_dict = {
                     'LMN_open': 0.0,
                     "LMN_closed": 2,
                     "Smax": 5,
                     'HELI': 3,
-                    'VMS': 5
+                    'VMS': 5,
+                    'K_max': 5
                 }
 
-                return {"results": objectives_dict}
+                return {"results": res_dict}
 
         def run_pymoo(self, params) -> dict:
             problem = get_problem("welded_beam")
