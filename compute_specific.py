@@ -12,7 +12,7 @@ import hydra
 from omegaconf import DictConfig
 from utils.global_variable import *
 from utils.create_geometry_utils import generateShell
-from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud as createGeometry
+from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
 from utils.create_input_files import write_inp_contact
 from utils.gaussian_curvature_v2 import evaluate_developability
 from utils.parce_cfg import parce_cfg
@@ -76,12 +76,12 @@ def run_leaflet_contact(params):
     shellNode, shellEle, fixed_bc = generateShell(points=mesh.vertices, elements=mesh.faces,
                                                   pointsInner=pointsInner,
                                                   pointsHullLower=pointsHullLower, meshStep=mesh_step)
-    with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
-        for point in shellNode:
-            writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
-    with open(f'./inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
-        for point in shellEle:
-            writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+    # with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
+    #     for point in shellNode:
+    #         writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+    # with open(f'./inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
+    #     for point in shellEle:
+    #         writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
 
     tt2 = datetime.datetime.now()
     message = 'done'
@@ -165,23 +165,23 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2_koka.yaml'
+config_name='config_leaf_NSGA2.yaml'
 
 @hydra.main(config_path="configuration", config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:
 
     parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
-    trade_off_df = pd.read_excel(os.path.join('results/jvalve','history.xlsx'), sheet_name='Sheet1')
+    trade_off_df = pd.read_excel(os.path.join('results','Обработка данных на основе History_ed (1.1).xlsx'), sheet_name='Corr')
 
     for index, row in trade_off_df.iterrows():
-        if row['Unnamed: 0'] in [348]:
-            set_id(f'{row["generation"]}_{row["Unnamed: 0"]}')
+        if row['Column1'] in [33389]:
+            set_id(f'{int(row["generation"])}_{int(row["Column1"])}')
 
             parameters = {
                 'HGT': row['HGT'],
                 'Lstr': row['Lstr'],
-                'THK':  row['THK'],
+                'THK':  row['THK'] - 0.08,
                 'ANG': row['ANG'],
                 'CVT': row['CVT'],
                 'LAS': row['LAS']

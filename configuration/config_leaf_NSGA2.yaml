@@ -13,7 +13,7 @@ objectives:
   - -1/(HELI^2)
 
 problem_definition:
-  name: test_Jvalve
+  name: otp_geom
   position: mitr
   problem_name: leaflet_contact
   DIA: 26

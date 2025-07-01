@@ -12,7 +12,10 @@ from utils.compute_utils import run_abaqus
 from utils.fea_results_utils import read_data
 from utils.project_utils import purgeFiles
 from utils.create_geometry_utils_v2 import generateShell
-from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud
+if 'FCVT' in get_parameters_list():
+    from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud
+else:
+    from utils.create_geometry_utils import generate_leaflet_pointcloud
 from utils.gaussian_curvature_v2 import evaluate_developability
 from utils.create_input_files import write_inp_shell, write_inp_contact
 import os
@@ -256,11 +259,13 @@ class Procedure:
                     Lift = params[get_parameters_list().index('Lift')]
                 else:
                     Lift = get_Lift()
-
-                if 'FCVT' in get_parameters_list():
-                    FCVT = params[get_parameters_list().index('FCVT')]
-                else:
-                    FCVT = get_Lift()
+                try:
+                    if 'FCVT' in get_parameters_list():
+                        FCVT = params[get_parameters_list().index('FCVT')]
+                    else:
+                        FCVT = get_Lift()
+                except:
+                    pass
 
                 if 'SEC' in get_parameters_list():
                     SEC = params[get_parameters_list().index('SEC')]
@@ -286,9 +291,15 @@ class Procedure:
                 PressType = get_valve_position()  # can be 'vent'
                 fileName = baseName + '.inp'
                 try:
-                    pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
-                        generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.35,
-                                                    ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step, FCVT=FCVT)
+                    if 'FCVT' in get_parameters_list():
+                        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+                            generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.35,
+                                                        ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS,
+                                                        mesh_step=mesh_step, FCVT=FCVT)
+                    else:
+                        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+                            generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.35,
+                                                        ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
                 except Exception as e:
                     raise e
 

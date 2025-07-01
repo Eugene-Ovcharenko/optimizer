@@ -20,7 +20,7 @@ from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.optimisation_data_utils import *
 from utils.visualize import *
 
-config_name = 'config_leaf_NSGA2_koka'
+config_name = 'config_leaf_NSGA2_jValve1_3'
 
 class MultiStreamHandler:
     """
@@ -307,14 +307,14 @@ def main(cfg:DictConfig) -> None:
     print("\nRead Constraints:")
     print(constraints)
 
-    restore_state = False
+    restore_state = True
 
     # folder to store results
     if not restore_state:
         basic_folder_path = create_results_folder(base_folder='results')
     else:
         basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', 'jvalve')
-        last_gen = 20
+        last_gen = 100
     print(f"folder path > {basic_folder_path}")
 
     for file in glob('./*.rpy*'):
