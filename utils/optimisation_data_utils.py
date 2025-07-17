@@ -272,19 +272,19 @@ def extract_optimization_results(
     history_df = pd.DataFrame(history_data)
     history_df.to_excel(os.path.join(output_path, 'history.xlsx'))
 
-    if res.X:
+    if hasattr(res, 'X') and res.X is not None and len(res.X) > 0:
         X = pd.DataFrame(res.X, columns=problem.param_names)
     else:
         X = pd.DataFrame(history_df[problem.param_names], columns=problem.param_names)
 
-    if res.F:
+    if hasattr(res, 'F') and res.F is not None and len(res.F) > 0:
         F = pd.DataFrame(res.F, columns=problem.obj_names)
     else:
         F = pd.DataFrame(history_df[problem.obj_names], columns=problem.obj_names)
 
 
     if hasattr(res, 'G'):
-        if res.G:
+        if hasattr(res, 'G') and res.G is not None and len(res.G) > 0:
             G = pd.DataFrame(res.G, columns=problem.constr_names)
         else:
             G = pd.DataFrame(history_df[problem.constr_names], columns=problem.constr_names)
@@ -293,7 +293,7 @@ def extract_optimization_results(
 
 
     if hasattr(res, 'CV'):
-        if res.CV:
+        if hasattr(res, 'CV') and res.CV is not None and len(res.CV) > 0:
             CV = pd.DataFrame(res.CV, columns=['CV'])
         else:
             CV = pd.DataFrame(history_df['CV'], columns=['CV'])
