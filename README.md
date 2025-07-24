@@ -93,12 +93,12 @@ Equation(2) underlies `gaussian_tolerance_from_area_strain`, converting an admis
 
 ## 3. Engineering Interpretation of Tolerances
 
-| $\delta A/A_{\max}$ | $|K|_{\max}$ at $L=12\text{mm}$ (mm$^{-2}$)| Equivalent radius $R=\sqrt{1/|K|}$ | Typical linear strain \* |
-|---|---|---|---|
-| 1%(0.01) | $1.4\times10^{-3}$ | 31.6mm | ≈0.5% |
-| 3%(0.03) | $4.2\times10^{-3}$ | 17.3mm | ≈1.5% |
-| 6%(0.06) | $8.3\times10^{-3}$ | 11.0mm | ≈3% |
-| 10%(0.10) | $1.4\times10^{-2}$ | 8.4mm | ≈5% |
+delta(A)/A_max | abs(K_max) at L=12 mm, mm^-2 | Equivalent radius R=sqrt(1/abs(K)) | Typical linear strain
+--- | --- | --- | ---
+1%(0.01) | $$1.4\times10^{-3}$$ | 31.6mm | ≈0.5%
+3%(0.03) | $$4.2\times10^{-3}$$ | 17.3mm | ≈1.5%
+6%(0.06) | $$8.3\times10^{-3}$$ | 11.0mm | ≈3%
+10%(0.10) | $$1.4\times10^{-2}$ $| 8.4mm | ≈5%
 
 \*Linear strain is approximated by $\tfrac12\,\delta A/A$ for small deformations.
 
