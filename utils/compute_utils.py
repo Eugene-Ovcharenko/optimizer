@@ -3,7 +3,8 @@ import datetime
 import time
 import subprocess
 import psutil as psu
-from utils.global_variable import get_problem_name, get_cpus
+from utils.global_variable import get_problem_name, get_cpus, get_global_path
+
 
 def run_abaqus(
     Path: str = None,
@@ -77,6 +78,7 @@ def run_abaqus(
                 break
     else:
         message = 'runanaqus error: InpFile submit failed'
+        os.chdir(get_global_path())
     return message
 
 def get_history_output_single(

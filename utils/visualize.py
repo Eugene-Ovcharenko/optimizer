@@ -66,19 +66,6 @@ def create_pareto_front_plot(
         data = pd.read_csv(csv_path)
 
         # Extract objective values as a list of tuples
-        # try:
-        #     points = list(zip(data['LMN_open'], data['LMN_closed'], data['Smax']))
-        # except:
-        #     try:
-        #         points = list(zip(data['LMN_open']))
-        #     except:
-        #         try:
-        #             points = list(zip(data['LMN_closed']))
-        #         except:
-        #             try:
-        #                 points = list(zip(data['Smax']))
-        #             except:
-        #                 raise('cannot load objcetives')
         points = objectivies
 
         def is_dominated(point, others):
@@ -714,10 +701,10 @@ def plot_pareto_with_trade_off(
 
     # Identify the Pareto front
     pareto_indices = NonDominatedSorting().do(F.to_numpy(), only_non_dominated_front=True)
-    pareto_front = F.iloc[pareto_indices]
+    # pareto_front = F.iloc[pareto_indices]
 
     subplot_count = (num_objectives * (num_objectives - 1)) // 2  # Unique pairs of objectives
-    fig, axes = plt.subplots(1, subplot_count, figsize=(10 * subplot_count, 10))
+    fig, axes = plt.subplots(1, subplot_count, figsize=(7 * subplot_count, 7))
     plot_idx = 0
 
     for i in range(num_objectives):
@@ -745,10 +732,10 @@ def plot_pareto_with_trade_off(
             )
 
             # Sort the Pareto front points for continuous line plotting
-            pareto_sorted = pareto_front.sort_values(by=[F.columns[i], F.columns[j]])
-            ax.plot(pareto_sorted[F.columns[i]], pareto_sorted[F.columns[j]], label="Pareto front", color="green")
+            # pareto_sorted = pareto_front.sort_values(by=[F.columns[i], F.columns[j]])
+            # ax.plot(pareto_sorted[F.columns[i]], pareto_sorted[F.columns[j]], label="Pareto front", color="green")
 
-            ax.set_title(f"Objective ({F.columns[i]}) vs Objective ({F.columns[j]})")
+            ax.set_title(f"({F.columns[i]}) vs Objective ({F.columns[j]})")
             ax.set_xlabel(F.columns[i])
             ax.set_ylabel(F.columns[j])
             plot_idx += 1

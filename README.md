@@ -55,6 +55,71 @@ The repository contains several visualization functions to analyze the optimizat
 - **Scatter Plots**: Plots objectives against parameters and constraints.
 - **Parallel Coordinates**: Plots multiple variables on parallel axes to understand relationships.
 
+---
+# Mathematical Basis of the Unfolding Algorithm <!-- README.md -->
+
+## 1. Developability and Gaussian Curvature
+
+For a smooth surface $S \subset \mathbb{R}^3$ the Gaussian curvature is the product of the principal curvatures:
+
+$$
+K(p)=\kappa_1(p)\,\kappa_2(p).
+$$
+
+* **Gauss’ Theorema Egregium.** Gaussian curvature is invariant under isometric deformations. Hence a surface is *developable* (can be unfolded to the plane without stretching) iff $K\equiv0$.
+
+## 2. “Almost‑Developable” Engineering Approximation
+
+In practice we admit small curvatures $|K|\le |K|_{\max}$.
+Let $a$ be the radius of a small circular patch. For sufficiently small $a$
+
+$$
+\frac{\delta A}{A}\;\approx\;\frac{K\,a^{2}}{6},
+\tag{1}
+$$
+
+where $\delta A/A$ is the relative area change when the patch is flattened.
+
+### Practical design formula
+
+Using (1) and setting the characteristic linear size $L=2a$,
+
+$$
+|K|_{\max}\;=\;\frac{24\,(\delta A/A)_{\max}}{L^{2}}.
+\tag{2}
+$$
+
+Equation(2) underlies `gaussian_tolerance_from_area_strain`, converting an admissible area strain percentage into a tolerance for $|K|$.
+
+## 3. Engineering Interpretation of Tolerances
+
+| $\delta A/A_{\max}$ | $|K|_{\max}$ at $L=12\text{mm}$ (mm$^{-2}$)| Equivalent radius $R=\sqrt{1/|K|}$ | Typical linear strain \* |
+|---|---|---|---|
+| 1%(0.01) | $1.4\times10^{-3}$ | 31.6mm | ≈0.5% |
+| 3%(0.03) | $4.2\times10^{-3}$ | 17.3mm | ≈1.5% |
+| 6%(0.06) | $8.3\times10^{-3}$ | 11.0mm | ≈3% |
+| 10%(0.10) | $1.4\times10^{-2}$ | 8.4mm | ≈5% |
+
+\*Linear strain is approximated by $\tfrac12\,\delta A/A$ for small deformations.
+
+* **Polymeric leaflets** (Formlabs Elastic50A, ShoreA50) sustain ≥100% elastic elongation\[3]; thus $|K|\le10^{-2}\,\text{mm}^{-2}$ (≤6% area strain) is mechanically safe and geometrically accurate.
+* A tolerance of $10^{-1}\,\text{mm}^{-2}$ corresponds to 60% area change and is acceptable only when large material draw‑in is permissible.
+
+## 4. Tolerance Selection Algorithm in Code
+
+```python
+# Pseudocode (see adaptive_tolerance in /gaussian_curvature_v2.py)
+
+tol = gaussian_tolerance_from_area_strain(
+        diameter_mm=L,
+        max_area_strain=desired_area_strain)
+
+result = evaluate_developability(mesh, tol)
+```
+
+`adaptive_tolerance` iterates over a set of allowable $\delta A/A$ values (1%,3%,6%,10%) and returns the smallest $|K|_{\max}$ that passes `evaluate_developability`. This yields the **least‑distorting** geometry consistent with manufacturability.
+
+
 ## Dependencies
 
 Necessary dependencies are listed in `requirements.txt`.

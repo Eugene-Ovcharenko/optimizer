@@ -1,6 +1,9 @@
 import logging
+import os.path
 import pickle
+import shutil
 import time
+import argparse
 
 from glob2 import glob
 import pathlib
@@ -20,7 +23,19 @@ from utils.problem_no_xlsx import Procedure, init_procedure
 from utils.optimisation_data_utils import *
 from utils.visualize import *
 
-config_name = 'config_leaf_NSGA2_jValve1_3'
+parser = argparse.ArgumentParser(description="A script that demonstrates command-line arguments with flags.")
+
+parser.add_argument(
+    "-c", "--config",
+    type=str,
+    dest='config_name',
+    default='config_leaf_NSGA2_koka',
+    help="Specify config .yaml name."
+)
+
+config_name = parser.parse_args().config_name
+# config_name = 'config_leaf_NSGA2_koka'
+
 
 class MultiStreamHandler:
     """
@@ -297,7 +312,6 @@ class CustomCallback(Callback):
 def main(cfg:DictConfig) -> None:
     basic_stdout = sys.stdout
     basic_stderr = sys.stderr
-
     parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
     print("\nRead parameters :")
@@ -307,14 +321,18 @@ def main(cfg:DictConfig) -> None:
     print("\nRead Constraints:")
     print(constraints)
 
-    restore_state = True
+    restore_state = False
 
     # folder to store results
     if not restore_state:
         basic_folder_path = create_results_folder(base_folder='results')
+        shutil.copy(
+            os.path.join(str(pathlib.Path(__file__).parent.resolve()), 'configuration', config_name+'.yaml'),
+            basic_folder_path
+        )
     else:
         basic_folder_path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'results', 'jvalve')
-        last_gen = 100
+        last_gen = 20
     print(f"folder path > {basic_folder_path}")
 
     for file in glob('./*.rpy*'):
@@ -335,7 +353,7 @@ def main(cfg:DictConfig) -> None:
     save_callback = CustomCallback(
         objectives=objectives,
         folder_path=basic_folder_path,
-        interval_backup=10,
+        interval_backup=5,
         interval_picture=1
     )
 

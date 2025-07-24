@@ -12,11 +12,8 @@ from utils.compute_utils import run_abaqus
 from utils.fea_results_utils import read_data
 from utils.project_utils import purgeFiles
 from utils.create_geometry_utils_v2 import generateShell
-if 'FCVT' in get_parameters_list():
-    from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud
-else:
-    from utils.create_geometry_utils import generate_leaflet_pointcloud
 from utils.gaussian_curvature_v2 import evaluate_developability
+from utils.unfolding_utils import gaussian_tolerance_from_area_strain
 from utils.create_input_files import write_inp_shell, write_inp_contact
 import os
 import os
@@ -52,28 +49,84 @@ class Procedure:
         def run_leaflet_single(self, params) -> dict:
             ID = get_id()
             try:
-                baseName = self.baseName + '_' + now + '_' + str(ID)
+                baseName = get_base_name() + '_' + now
+                reset_direction()
                 tt1 = datetime.datetime.now()
+
+                if 'HGT' in get_parameters_list():
+                    HGT = params[get_parameters_list().index('HGT')]
+                else:
+                    HGT = get_HGT()
+
+                if 'Lstr' in get_parameters_list():
+                    Lstr = params[get_parameters_list().index('Lstr')]
+                else:
+                    Lstr = get_Lstr()
+
+                if 'THK' in get_parameters_list():
+                    THK = params[get_parameters_list().index('THK')]
+                else:
+                    THK = get_THK()
+
+                if 'ANG' in get_parameters_list():
+                    ANG = params[get_parameters_list().index('ANG')]
+                else:
+                    ANG = get_ANG()
+
+                if 'CVT' in get_parameters_list():
+                    CVT = params[get_parameters_list().index('CVT')]
+                else:
+                    CVT = get_CVT()
+
+                if 'LAS' in get_parameters_list():
+                    LAS = params[get_parameters_list().index('LAS')]
+                else:
+                    LAS = get_LAS()
+
+                if 'DIA' in get_parameters_list():
+                    DIA = params[get_parameters_list().index('DIA')]
+                else:
+                    DIA = get_DIA()
+
+                if 'Lift' in get_parameters_list():
+                    Lift = params[get_parameters_list().index('Lift')]
+                else:
+                    Lift = get_Lift()
                 try:
-                    HGT, Lstr, THK, ANG, CVT, LAS = params
+                    if 'FCVT' in get_parameters_list():
+                        from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud
+                        FCVT = params[get_parameters_list().index('FCVT')]
+                    else:
+                        from utils.create_geometry_utils import generate_leaflet_pointcloud
+                        FCVT = get_Lift()
                 except:
-                    Lstr, ANG, CVT, LAS = params
-                    HGT = 11
-                    THK = 0.3
-                DIA = 22.98
-                Lift = 0
-                SEC = 120
-                EM = 3.2
+                    pass
+
+                if 'SEC' in get_parameters_list():
+                    SEC = params[get_parameters_list().index('SEC')]
+                else:
+                    SEC = get_SEC()
+
+                EM = get_EM()  # Formlabs elastic 50A
                 mesh_step = self.mesh_step
-                tangent_behavior = 0.05
-                normal_behavior = 0.2
+                tangent_behavior = get_tangent_behavior()
+                normal_behavior = get_normal_behavior()
+
+                Dens = get_density()
+                MaterialName = get_material_name()
+                PressType = get_valve_position()  # can be 'vent'
                 fileName = baseName + '.inp'
                 try:
-                    pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
-                        generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.5,
-                                                    ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
+                    if 'FCVT' in get_parameters_list():
+                        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+                            generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.35,
+                                                        ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS,
+                                                        mesh_step=mesh_step, FCVT=FCVT)
+                    else:
+                        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+                            generate_leaflet_pointcloud(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=0.35,
+                                                        ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
                 except Exception as e:
-
                     raise e
 
                 k = 1.1
@@ -206,8 +259,8 @@ class Procedure:
                 objectives_dict = {
                     'LMN_open': 0.0,
                     "LMN_closed": 2,
-                    "Smax": 5,
-                    'VMS': 5
+                    "Smax": 50,
+                    'VMS': 50
                 }
 
                 return {"results": objectives_dict}
@@ -261,8 +314,10 @@ class Procedure:
                     Lift = get_Lift()
                 try:
                     if 'FCVT' in get_parameters_list():
+                        from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud
                         FCVT = params[get_parameters_list().index('FCVT')]
                     else:
+                        from utils.create_geometry_utils import generate_leaflet_pointcloud
                         FCVT = get_Lift()
                 except:
                     pass
@@ -336,16 +391,37 @@ class Procedure:
                 except Exception as e:
                     raise e
 
-                results = evaluate_developability(
-                    points_inner=shellNode,
-                    shell_elements=shellEle,
-                    visualize=False,
-                    method="pca"
-                )
+                if get_check_unfolding():
+                    K_toll = gaussian_tolerance_from_area_strain(diameter_mm=DIA, max_area_strain=0.15)
+                    results = evaluate_developability(
+                        points_inner=shellNode,
+                        tolerance=K_toll,
+                        shell_elements=shellEle,
+                        visualize=False,
+                        method="pca"
+                    )
 
-                K_max = results['is_developable']
+                    if results['is_developable']:
+                        K_max = 0
+                    else:
+                        K_max = results['curvature_stats']['max_abs_curvature']
+                        if (
+                                'K_max' in get_objectives_list()
+                                or 'K_max' in get_constraints_list()
+                                or 'K_max' in get_parameters_list()
+                        ):
+                            if K_max > 1e-3:
+                                res_dict = {
+                                    'LMN_open': 0.0,
+                                    "LMN_closed": 2,
+                                    "Smax": get_s_lim()*2,
+                                    'HELI': 3,
+                                    'VMS': 5,
+                                    'K_max': K_max
+                                }
 
-                del mesh
+                                return {"results": res_dict}
+                del mesh, results
 
                 inpFileName = str(inpDir) + str(baseName)
                 jobName = str(baseName) + '_Job'
@@ -432,7 +508,7 @@ class Procedure:
                 res_dict = {
                     'LMN_open': 0.0,
                     "LMN_closed": 2,
-                    "Smax": 5,
+                    "Smax": get_s_lim()*2,
                     'HELI': 3,
                     'VMS': 5,
                     'K_max': 5

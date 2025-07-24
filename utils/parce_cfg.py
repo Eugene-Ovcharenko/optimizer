@@ -158,6 +158,12 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
         print('No attr \'problem_definition.name\'. Set default - \'Forgotten name\'')
         set_base_name('Forgotten name')
 
+    if hasattr(cfg.problem_definition, 'check_unfolding'):
+        set_check_unfolding(cfg.problem_definition.check_unfolding)
+    else:
+        print('No attr \'problem_definition.check_unfolding\'. Set default - \'False\'')
+        set_check_unfolding(False)
+
 
     # check material-related parameters
     if hasattr(cfg.problem_definition.material, 'material_definition_type'):

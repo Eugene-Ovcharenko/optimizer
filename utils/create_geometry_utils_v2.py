@@ -827,24 +827,30 @@ def generate_leaflet_pointcloud(
 
     # spline through center of belly line and commisures top points
     if Lstr > 0:
-        tempDist = np.abs(contour_leaf[2] - (HGT - Lstr))
+        tempDist = np.abs(contour_leaf[2] - (HGT - Lstr/2))
         ind = np.argmin(tempDist)
 
-        if ind - len(tempDist) / 2 > 0:
-            ind = ind - 3
-        else:
-            ind = ind + 3
+        # if ind - len(tempDist) / 2 > 0:
+        #     ind = ind - 3
+        # else:
+        #     ind = ind + 3
         del tempDist
     else:
         ind = 0
-
-    tSplin = np.transpose(
-        np.append(
-            np.append(
-                (contour_leaf[0, ind], contour_leaf[1, ind], contour_leaf[2, ind]), leaf_spline[1])
-            , (-contour_leaf[0, ind], contour_leaf[1, ind], contour_leaf[2, ind])
-        ).reshape(3, 3)
-    )
+    # tSplin = np.transpose(
+    #     np.append(
+    #         np.append(
+    #             (contour_leaf[0, ind], contour_leaf[1, ind], contour_leaf[2, ind]), leaf_spline[1])
+    #         , (-contour_leaf[0, ind], contour_leaf[1, ind], contour_leaf[2, ind])
+    #     ).reshape(3, 3)
+    # )
+    tSplin = np.vstack(
+        (
+            contour_leaf[:,ind],
+            leaf_spline[1],
+            [-contour_leaf[0, ind], contour_leaf[1, ind], contour_leaf[2, ind]]
+        )
+    ).T
     middle_spline = np.array(perform_interpolation(30, tSplin[0], tSplin[1], tSplin[2], key='pchip'), dtype='float64')
     dx = np.abs(np.array(np.diff(middle_spline[0])))
     dy = np.abs(np.array(np.diff(middle_spline[1])))

@@ -60,12 +60,15 @@ class Params:
     e_coeffs = []
     poisson_coeffs = []
     parameters_list = []
+    objectives_list = []
+    constraints_list = []
+    check_unfolding = False
     def __init__(self,
                  percent, problem_name, id, cpus, mesh_step,
                  baseName, Slim, direction, valve_position,
                  DIA, Lift, SEC, EM, density, material_name, material_csv_path,
                  abq_tangent_behavior, abq_normal_behavior, global_path, material_type,
-                 e_coeffs, poisson_coeffs, FCVT, parameters_list, HGT, THK, ANG, Lstr, LAS, CVT):
+                 e_coeffs, poisson_coeffs, FCVT, parameters_list, objectives_list, constraints_list, HGT, THK, ANG, Lstr, LAS, CVT, check_unfolding):
         self.percent = percent
         if (
                 problem_name.lower() == 'leaflet_single'
@@ -109,6 +112,9 @@ class Params:
         self.poisson_coeffs = poisson_coeffs
         self.FCVT = FCVT
         self.parameters_list = parameters_list
+        self.objectives_list = objectives_list
+        self.constraints_list = constraints_list
+        self.check_unfolding = check_unfolding
 
 
 params = Params(
@@ -132,6 +138,8 @@ params = Params(
     e_coeffs=[],
     poisson_coeffs=[],
     parameters_list=[],
+    objectives_list=[],
+    constraints_list=[],
     FCVT=0.5,
     DIA=29,
     Lift=0,
@@ -141,7 +149,8 @@ params = Params(
     ANG=-10,
     Lstr=1,
     LAS=0.5,
-    CVT=0.5
+    CVT=0.5,
+    check_unfolding=False
 )
 
 # Setters
@@ -255,6 +264,15 @@ def set_poisson_coeffs(val: Union[float, list]):
 
 def set_parameters_list(val: Union[list]):
     params.parameters_list = val
+
+def set_objectives_list(val: Union[list]):
+    params.objectives_list = val
+
+def set_constraints_list(val: Union[list]):
+    params.constrains_list = val
+
+def set_check_unfolding(val: bool):
+    params.check_unfolding = val
 
 
 # Getters
@@ -370,6 +388,15 @@ def get_poisson_coeffs() -> Union[list[float], float]:
 
 def get_parameters_list() -> Union[list[str], float]:
     return params.parameters_list
+
+def get_objectives_list() -> Union[list[str], float]:
+    return params.objectives_list
+
+def get_constraints_list() -> Union[list[str], float]:
+    return params.constraints_list
+
+def get_check_unfolding() -> bool:
+    return params.check_unfolding
 
 
 def reset_direction() -> None:

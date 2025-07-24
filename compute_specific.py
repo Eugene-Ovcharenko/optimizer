@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 import pandas as pd
 import numpy as np
@@ -11,8 +12,6 @@ from random import random
 import hydra
 from omegaconf import DictConfig
 from utils.global_variable import *
-from utils.create_geometry_utils import generateShell
-from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
 from utils.create_input_files import write_inp_contact
 from utils.gaussian_curvature_v2 import evaluate_developability
 from utils.parce_cfg import parce_cfg
@@ -22,30 +21,81 @@ import os
 
 
 def run_leaflet_contact(params):
+    if 'HGT' in get_parameters_list():
+        HGT = params[get_parameters_list().index('HGT')]
+    else:
+        HGT = get_HGT()
 
+    if 'Lstr' in get_parameters_list():
+        Lstr = params[get_parameters_list().index('Lstr')]
+    else:
+        Lstr = get_Lstr()
+
+    if 'THK' in get_parameters_list():
+        THK = params[get_parameters_list().index('THK')]
+    else:
+        THK = get_THK()
+
+    if 'ANG' in get_parameters_list():
+        ANG = params[get_parameters_list().index('ANG')]
+    else:
+        ANG = get_ANG()
+
+    if 'CVT' in get_parameters_list():
+        CVT = params[get_parameters_list().index('CVT')]
+    else:
+        CVT = get_CVT()
+
+    if 'LAS' in get_parameters_list():
+        LAS = params[get_parameters_list().index('LAS')]
+    else:
+        LAS = get_LAS()
+
+    if 'DIA' in get_parameters_list():
+        DIA = params[get_parameters_list().index('DIA')]
+    else:
+        DIA = get_DIA()
+
+    if 'Lift' in get_parameters_list():
+        Lift = params[get_parameters_list().index('Lift')]
+    else:
+        Lift = get_Lift()
     try:
-        HGT, Lstr, THK, ANG, CVT, LAS = params
+        if 'FCVT' in get_parameters_list():
+            from utils.create_geometry_utils_v2 import generateShell
+            from utils.create_geometry_utils_v2 import generate_leaflet_pointcloud as createGeometry
+            FCVT = params[get_parameters_list().index('FCVT')]
+        else:
+            from utils.create_geometry_utils import generateShell
+            from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
+            FCVT = get_Lift()
     except:
-        Lstr, ANG, CVT, LAS = params
-        HGT = 11
-        THK = 0.3
+        pass
+
+    if 'SEC' in get_parameters_list():
+        SEC = params[get_parameters_list().index('SEC')]
+    else:
+        SEC = get_SEC()
+
     reset_direction()
     ID = get_id()
     baseName = get_base_name()
-    DIA = get_DIA()
-    Lift = get_Lift()
     EM = get_EM()  # Formlabs elastic 50A
     mesh_step = get_mesh_step()
     tangent_behavior = get_tangent_behavior()
     normal_behavior = get_normal_behavior()
-    SEC = get_SEC()
     Dens = get_density()
     MaterialName = get_material_name()
     PressType = get_valve_position()  # can be 'vent'
     fileName = baseName + '.inp'
-    pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
-            createGeometry(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=THK,
-                           ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
+    if 'FCVT' in get_parameters_list():
+        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+                createGeometry(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=THK,
+                               ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step, FCVT=FCVT)
+    else:
+        pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
+                createGeometry(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=THK,
+                               ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
     os.makedirs('inps', exist_ok=True)
     with open(f'./inps/fixed_bottom_{get_base_name()}_{ID}.txt','w') as writer:
         for point in pointsHullLower.T:
@@ -72,22 +122,33 @@ def run_leaflet_contact(params):
 
     tt2 = datetime.datetime.now()
 
+    fig = plt.figure(figsize=(10, 10))
+    ax1 = fig.add_subplot(111, projection='3d')
+    ax1.scatter(pointsInner[0], pointsInner[1], pointsInner[2], c='k', s=10)
+    ax1.scatter(pointsHullLower[0], pointsHullLower[1], pointsHullLower[2], c='r', s=10)
+    ax1.set_xlim((-DIA/2+2,DIA/2+2))
+    ax1.set_ylim((-DIA/2+2,DIA/2+2))
+    ax1.set_zlim((0,HGT+2))
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y')
+    ax1.set_zlabel('Z')
+    plt.show()
 
     shellNode, shellEle, fixed_bc = generateShell(points=mesh.vertices, elements=mesh.faces,
                                                   pointsInner=pointsInner,
                                                   pointsHullLower=pointsHullLower, meshStep=mesh_step)
-    # with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
-    #     for point in shellNode:
-    #         writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
-    # with open(f'./inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
-    #     for point in shellEle:
-    #         writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+    with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
+        for point in shellNode:
+            writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
+    with open(f'./inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
+        for point in shellEle:
+            writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
 
     tt2 = datetime.datetime.now()
     message = 'done'
 
-    # evaluate_developability(points_inner=shellNode, shell_elements=shellEle, visualize=True, method="pca")
-
+    res = evaluate_developability(points_inner=shellNode, shell_elements=shellEle, visualize=True, method="pca")
+    print(res['is_developable'])
     del mesh
     pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/utils/abaqusWF/'
     inpFileName = str(pathlib.Path(__file__).parent.resolve()) + str('/utils/inps/') + f'{get_base_name()}_{ID}'
@@ -165,28 +226,22 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2.yaml'
+config_name='config_leaf_NSGA2_koka.yaml'
 
 @hydra.main(config_path="configuration", config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:
 
     parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
-    trade_off_df = pd.read_excel(os.path.join('results','Обработка данных на основе History_ed (1.1).xlsx'), sheet_name='Corr')
+    trade_off_df = pd.read_excel(os.path.join('results/005_26_06_2025','history.xlsx'), sheet_name='Sheet1')
 
     for index, row in trade_off_df.iterrows():
-        if row['Column1'] in [33389]:
-            set_id(f'{int(row["generation"])}_{int(row["Column1"])}')
+        if row['Unnamed: 0'] in [1260]:
+            set_id(f'{row["generation"]}_{row["Unnamed: 0"]}')
 
-            parameters = {
-                'HGT': row['HGT'],
-                'Lstr': row['Lstr'],
-                'THK':  row['THK'] - 0.08,
-                'ANG': row['ANG'],
-                'CVT': row['CVT'],
-                'LAS': row['LAS']
-            }
-            run_leaflet_contact(parameters.values())
+            params = {f'{param}': row[param] for param in parameters}
+
+            run_leaflet_contact(list(params.values()))
 
 
 if __name__ == '__main__':

@@ -58,10 +58,7 @@ def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visual
 
     max_curvature = np.max(np.abs(gaussian_curvatures))
     mean_curvature = np.mean(np.abs(gaussian_curvatures))
-    if max_curvature < tolerance:
-        is_developable = 0
-    else:
-        is_developable = max_curvature
+    is_developable = max_curvature < tolerance
 
     curvature_stats = {
         'max_abs_curvature': max_curvature,
@@ -222,7 +219,7 @@ def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertic
                 expected_angle = corner_vertices[i]
                 gaussian_curvs[i] = 0#(expected_angle - angle_sums[i]) / vertex_areas[i]
             elif i in boundary_set:
-                gaussian_curvs[i] = (np.pi - angle_sums[i]) / vertex_areas[i]
+                gaussian_curvs[i] = 0# (np.pi - angle_sums[i]) / vertex_areas[i]
             else:
                 gaussian_curvs[i] = (2 * np.pi - angle_sums[i]) / vertex_areas[i]
 

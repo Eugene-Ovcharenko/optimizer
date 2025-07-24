@@ -41,7 +41,7 @@ def unfold_surface(points_inner, shell_elements, method='conformal'):
     }
 
 
-def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visualize=True, method='conformal'):
+def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visualize=True, method='pca'):
     points_array = np.array(points_inner)
     if points_array.shape[0] == 3 and points_array.shape[1] > 3:
         points = points_array.T
@@ -55,6 +55,7 @@ def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visual
 
     boundary_vertices = _find_boundary_vertices(elements, n_points)
     gaussian_curvatures = _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertices)
+    # gaussian_curvatures = _compute_gaussian_curvature_no_boundary(points, elements, boundary_vertices)
 
     max_curvature = np.max(np.abs(gaussian_curvatures))
     mean_curvature = np.mean(np.abs(gaussian_curvatures))
@@ -149,6 +150,46 @@ def _find_boundary_vertices(elements, n_points):
     return list(boundary_vertices)
 
 
+def _compute_gaussian_curvature_no_boundary(points, elements, boundary_vertices=None):
+    n_points = points.shape[0]
+    gaussian_curvs = np.zeros(n_points)
+    vertex_areas = np.zeros(n_points)
+    angle_sums = np.zeros(n_points)
+
+    for face in elements:
+        idx0, idx1, idx2 = face
+        v0, v1, v2 = points[idx0], points[idx1], points[idx2]
+        a = np.linalg.norm(v2 - v1)
+        b = np.linalg.norm(v2 - v0)
+        c = np.linalg.norm(v1 - v0)
+        if a < 1e-12 or b < 1e-12 or c < 1e-12:
+            continue
+        edge1 = v1 - v0
+        edge2 = v2 - v0
+        cross_product = np.cross(edge1, edge2)
+        area = 0.5 * np.linalg.norm(cross_product)
+        if area < 1e-12:
+            continue
+        cos_A = np.clip((b * b + c * c - a * a) / (2 * b * c), -1, 1)
+        cos_B = np.clip((a * a + c * c - b * b) / (2 * a * c), -1, 1)
+        cos_C = np.clip((a * a + b * b - c * c) / (2 * a * b), -1, 1)
+        angle_A = np.arccos(cos_A)
+        angle_B = np.arccos(cos_B)
+        angle_C = np.arccos(cos_C)
+        angle_sums[idx0] += angle_A
+        angle_sums[idx1] += angle_B
+        angle_sums[idx2] += angle_C
+        vertex_areas[idx0] += area / 3
+        vertex_areas[idx1] += area / 3
+        vertex_areas[idx2] += area / 3
+
+    for i in range(n_points):
+        if vertex_areas[i] > 1e-12:
+            gaussian_curvs[i] = (2 * np.pi - angle_sums[i]) / vertex_areas[i]
+            gaussian_curvs[i] = np.clip(gaussian_curvs[i], -10, 10)
+    return gaussian_curvs
+
+
 def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertices):
     n_points = points.shape[0]
     gaussian_curvs = np.zeros(n_points)
@@ -197,13 +238,19 @@ def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertic
     for i in range(n_points):
         if vertex_areas[i] > 1e-12:
             if i in boundary_set:
+                continue
                 expected_angle = boundary_angle_defects.get(i, np.pi)
                 gaussian_curvs[i] = (expected_angle - angle_sums[i]) / vertex_areas[i]
             else:
                 gaussian_curvs[i] = (2 * np.pi - angle_sums[i]) / vertex_areas[i]
 
-            gaussian_curvs[i] = np.clip(gaussian_curvs[i], -10, 10)
-
+            # gaussian_curvs[i] = np.clip(gaussian_curvs[i], 0, 4)
+            gaussian_curvs[i] = np.abs(gaussian_curvs[i])
+    # ---- ДОБАВИТЬ ЭТОТ БЛОК ----
+    corner_vertices = _detect_corner_vertices(points, elements, boundary_vertices)
+    for idx in corner_vertices.keys():
+        gaussian_curvs[idx] = 0.0
+    # ----------------------------
     return gaussian_curvs
 
 
@@ -680,9 +727,9 @@ def _visualize_results(results):
     ax2.axis('equal')
 
     ax3 = fig.add_subplot(133, projection='3d')
-    curvatures_clipped = np.clip(curvatures, -5, 5)
+    # curvatures_clipped = np.clip(curvatures, -5, 5)
     scatter = ax3.scatter(points_3d[:, 0], points_3d[:, 1], points_3d[:, 2],
-                          c=curvatures_clipped, cmap='RdBu_r', s=20)
+                          c=curvatures, cmap='RdBu_r', s=20)
     plt.colorbar(scatter, ax=ax3, shrink=0.8)
     ax3.set_title('Гауссова кривизна')
     ax3.set_xlabel('X')
