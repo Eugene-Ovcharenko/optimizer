@@ -75,25 +75,23 @@ Let $a$ be the radius of a small circular patch. For sufficiently small $a$
 
 $$
 \frac{\delta A}{A}\;\approx\;\frac{K\,a^{2}}{6},
-\tag{1}
 $$
 
 where $\delta A/A$ is the relative area change when the patch is flattened.
 
 ### Practical design formula
 
-Using (1) and setting the characteristic linear size $L=2a$,
+Using equation above and setting the characteristic linear size $L=2a$,
 
 $$
-|K|_{\max}\;=\;\frac{24\,(\delta A/A)_{\max}}{L^{2}}.
-\tag{2}
+|K|_\max = \frac{24(\delta{A}/A) _ \max}{L^2}
 $$
 
-Equation(2) underlies `gaussian_tolerance_from_area_strain`, converting an admissible area strain percentage into a tolerance for $|K|$.
+This equation underlies `gaussian_tolerance_from_area_strain`, converting an admissible area strain percentage into a tolerance for $|K|$.
 
 ## 3. Engineering Interpretation of Tolerances
 
-delta(A)/A_max | abs(K_max) at L=12 mm, mm^-2 | Equivalent radius R=sqrt(1/abs(K)) | Typical linear strain
+$(\delta{A}/A) _ \max$ | abs(K_max) at L=12 mm, mm^-2 | Equivalent radius R=sqrt(1/abs(K)) | Typical linear strain
 --- | --- | --- | ---
 1%(0.01) | $$1.4\times10^{-3}$$ | 31.6mm | ≈0.5%
 3%(0.03) | $$4.2\times10^{-3}$$ | 17.3mm | ≈1.5%
@@ -127,7 +125,7 @@ Necessary dependencies are listed in `requirements.txt`.
 
 ## Configuration file
 
-Configure optimization with `.yaml` files located in `./configuration` folder.
+Configure optimization with `.yaml` files located in `./configuration` folder. You can run script with input keys `-c config_name` or `--config config_name`
 
 List of parameters:
  - `parameters:` - **mandatory**
@@ -188,6 +186,7 @@ List of parameters:
        - `n_max_evals: XX`
  
     You can add additional **Hydra**-related parameters below.
+
 ---
 
 ## <font color="yellow">TODO</font>
