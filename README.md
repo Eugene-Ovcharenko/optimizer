@@ -81,7 +81,7 @@ where $\delta A/A$ is the relative area change when the patch is flattened.
 
 ### Practical design formula
 
-Using equation above and setting the characteristic linear size $L=2a$,
+Using equation above and setting the characteristic linear size $L=2a$ (e.g. diameter of leaflet apparatus),
 
 $$
 |K|_\max = \frac{24(\delta{A}/A) _ \max}{L^2}
@@ -96,11 +96,11 @@ $(\delta{A}/A) _ \max$ | abs(K_max) at L=12 mm, mm^-2 | Equivalent radius R=sqrt
 1%(0.01) | $$1.4\times10^{-3}$$ | 31.6mm | ≈0.5%
 3%(0.03) | $$4.2\times10^{-3}$$ | 17.3mm | ≈1.5%
 6%(0.06) | $$8.3\times10^{-3}$$ | 11.0mm | ≈3%
-10%(0.10) | $$1.4\times10^{-2}$ $| 8.4mm | ≈5%
+10%(0.10) | $$1.4\times10^{-2}$$ | 8.4mm | ≈5%
 
 \*Linear strain is approximated by $\tfrac12\,\delta A/A$ for small deformations.
 
-* **Polymeric leaflets** (Formlabs Elastic50A, ShoreA50) sustain ≥100% elastic elongation\[3]; thus $|K|\le10^{-2}\,\text{mm}^{-2}$ (≤6% area strain) is mechanically safe and geometrically accurate.
+* **Polymeric leaflets** (e.g. Formlabs Elastic50A, ShoreA50) sustain ≥100% elastic elongation; thus $|K|\le10^{-2}\,\text{mm}^{-2}$ (≤6% area strain) is mechanically safe and geometrically accurate.
 * A tolerance of $10^{-1}\,\text{mm}^{-2}$ corresponds to 60% area change and is acceptable only when large material draw‑in is permissible.
 
 ## 4. Tolerance Selection Algorithm in Code
