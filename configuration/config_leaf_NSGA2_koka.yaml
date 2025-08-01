@@ -10,7 +10,7 @@ parameters:
 objectives:
   - -LMN_open^2
   - LMN_closed
-  - Slim - Smax
+  - Smax
   - HELI
 
 constraints:

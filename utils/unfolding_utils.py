@@ -20,7 +20,7 @@ def gaussian_tolerance_from_area_strain(diameter_mm: float,
         Порог |K|_max, который можно передать в evaluate_developability.
     """
     radius = 0.5 * diameter_mm
-    return 24.0 * max_area_strain / (2*diameter_mm ** 2)
+    return 5*24.0 * max_area_strain / (2*diameter_mm ** 2)
 
 
 def adaptive_tolerance(points_3d: np.ndarray,
