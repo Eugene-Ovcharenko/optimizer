@@ -29,7 +29,7 @@ parser.add_argument(
     "-c", "--config",
     type=str,
     dest='config_name',
-    default='config_leaf_NSGA2_koka',
+    default='config_leaf_NSGA2_Kost',
     help="Specify config .yaml name."
 )
 

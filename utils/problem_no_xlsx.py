@@ -390,7 +390,8 @@ class Procedure:
 
                 except Exception as e:
                     raise e
-
+                results = {}
+                K_max = None
                 if get_check_unfolding():
                     K_toll = gaussian_tolerance_from_area_strain(diameter_mm=DIA, max_area_strain=0.15)
                     results = evaluate_developability(

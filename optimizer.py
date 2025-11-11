@@ -23,7 +23,7 @@ import time
 from random import random
 from glob2 import glob
 from utils.global_variable import (set_problem_name, set_percent, set_cpus, set_base_name, set_s_lim, get_s_lim, set_id,
-                                   set_dead_objects, set_mesh_step, set_valve_position)
+                                   set_mesh_step, set_valve_position)
 import pickle
 
 

@@ -4,7 +4,7 @@ parameters:
   THK: [0.16, 0.16]
   ANG: [-15, 15]
   CVT: [0.1, 0.8]
-  LAS: [0.1, 1.0]
+  LAS: [0.1, 0.75]
 
 objectives:
   - 1 - LMN_open

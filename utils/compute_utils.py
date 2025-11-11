@@ -47,7 +47,11 @@ def run_abaqus(
     t0 = datetime.datetime.now()
     previous_path = os.getcwd()
     os.chdir(Path)
-    out_args = subprocess.check_output(inputFile, shell=True)
+    subprocess.run(
+        inputFile, shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
     time.sleep(10)
     os.chdir(previous_path)
     message = 'ABAQUS complete'
@@ -124,7 +128,11 @@ def get_history_output_single(
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
     consoleCommand = 'abaqus cae noGUI=' + str(os.path.join(pathName,'abaqus_scripts/')) + 'odbHistoryOutput_4perField.py'
-    outputs_args = os.system(consoleCommand)
+    subprocess.run(
+        consoleCommand, shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
 def get_history_output_contact(
     pathName: str = None,
@@ -168,7 +176,11 @@ def get_history_output_contact(
     fid.write('%s,%s' % (pathName, odbFileName))
     fid.close()
     consoleCommand = 'abaqus cae noGUI=' + str(os.path.join(pathName,'abaqus_scripts/')) + 'odbHistoryOutput_ShellContact.py'
-    outputs_args = os.system(consoleCommand)
+    subprocess.run(
+        consoleCommand, shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
 def get_history_output(
     pathName: str = None,

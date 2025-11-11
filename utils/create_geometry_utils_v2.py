@@ -8,6 +8,8 @@ from scipy import interpolate
 from utils.global_variable import get_global_path
 import warnings
 
+from matplotlib import pyplot as plt
+
 warnings.simplefilter("ignore", RuntimeWarning)
 
 ##=====================================================================================================================
@@ -701,9 +703,9 @@ def generate_leaflet_pointcloud(
     del temp_x, temp_y, temp_z
 
     # import matplotlib.pyplot as plt
-    # from mpl_toolkits.mplot3d import Axes3D
-    #
-    # cart_new_point_pos = pol2cart(point_pos[0],point_pos[1],point_pos[2])
+    from mpl_toolkits.mplot3d import Axes3D
+
+    cart_new_point_pos = pol2cart(point_pos[0],point_pos[1],point_pos[2])
     # cart_new_point_neg = pol2cart(point_neg[0],point_neg[1],point_neg[2])
     # cart_upper_pos = pol2cart(upper_pos[0], radius, upper_pos[2])
     # cart_lower_pos = pol2cart(lower_pos[0], radius, lower_pos[2])
@@ -728,8 +730,8 @@ def generate_leaflet_pointcloud(
     # ax1.set_ylabel('Y')
     # ax1.set_zlabel('Z')
     # ax1.set_title(f'diff: {FCVT:0.2f}')
-    # plt.savefig(f'{os.path.join(get_global_path(),"inps/pics/")}pic_diff_{FCVT:0.2f}.jpg')
-
+    # # plt.savefig(f'{os.path.join(get_global_path(),"inps/pics/")}pic_diff_{FCVT:0.2f}.jpg')
+    # plt.show()
     # sys.exit()
     points_hull_lower = contour_leaf
 
@@ -827,7 +829,7 @@ def generate_leaflet_pointcloud(
 
     # spline through center of belly line and commisures top points
     if Lstr > 0:
-        tempDist = np.abs(contour_leaf[2] - (HGT - Lstr/2))
+        tempDist = np.abs(contour_leaf[2] - (HGT - Lstr))
         ind = np.argmin(tempDist)
 
         # if ind - len(tempDist) / 2 > 0:
@@ -861,7 +863,45 @@ def generate_leaflet_pointcloud(
     del dx, dy, dz, distance, distances_between_vertices, middle_spline
     middle_spline = np.array(perform_interpolation(points_in_hor_line, tSplin[0], tSplin[1], tSplin[2], key='pchip'),
                             dtype='float64')
+    # del tSplin, leaf_spline
+
+    # temp_leaf_spline = np.array(
+    #     perform_interpolation(200, leaf_spline[:,0],leaf_spline[:,1],leaf_spline[:,2], key='pchip'),
+    #     dtype='float64'
+    # )
+    #
+    #
+    # cart_new_point_pos = pol2cart(point_pos[0],point_pos[1],point_pos[2])
+    # cart_new_point_neg = pol2cart(point_neg[0],point_neg[1],point_neg[2])
+    #
+    # _temp_temp_leaf_spline_idx = np.argmin(np.abs(cart_new_point_pos[2] - np.transpose(temp_leaf_spline[2]))) - 20
+    #
+    # tSplin = np.vstack(
+    #     (
+    #         cart_new_point_neg,
+    #         temp_leaf_spline[:,_temp_temp_leaf_spline_idx],
+    #         cart_new_point_pos
+    #     )
+    # ).T
+    # FCVT_spline = np.array(perform_interpolation(300, tSplin[0], tSplin[1], tSplin[2], key='pchip'), dtype='float64')
+    # dx = np.abs(np.array(np.diff(FCVT_spline[0])))
+    # dy = np.abs(np.array(np.diff(FCVT_spline[1])))
+    # dz = np.abs(np.array(np.diff(FCVT_spline[2])))
+    # distances_between_vertices = np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+    # distance = sum(distances_between_vertices)
+    # points_in_hor_line = int(np.ceil(distance / mesh_step)) + 1
+    # del dx, dy, dz, distance, distances_between_vertices, FCVT_spline
+    # FCVT_spline = np.array(perform_interpolation(points_in_hor_line, tSplin[0], tSplin[1], tSplin[2], key='pchip'),
+    #                         dtype='float64')
     del tSplin, leaf_spline
+
+    fig = plt.figure(figsize=(12,10))
+    ax = fig.add_subplot(111,projection='3d')
+    ax.scatter(points_hull_lower[0],points_hull_lower[1],points_hull_lower[2], c='k', marker='.')
+    ax.scatter(points_hull_upper[0],points_hull_upper[1],points_hull_upper[2], c='b', marker='.')
+    ax.scatter(middle_spline[0],middle_spline[1],middle_spline[2], c='c', marker='.')
+    # ax.scatter(FCVT_spline[0],FCVT_spline[1],FCVT_spline[2], c='c', marker='.')
+    # ax.scatter(temp_leaf_spline[0],temp_leaf_spline[1],temp_leaf_spline[2], c='g', marker='*')
 
     # adds "thickness". shift contour by THK along normal
     pl1 = upside_top[int(np.floor(len(upside_top) / 2)), :]
@@ -933,15 +973,18 @@ def generate_leaflet_pointcloud(
         out_points_hull_lower_shifted = shift_by_normal(points_hull_lower, normal_point, THK)
         out_points_hull_upper_shifted = shift_by_normal(points_hull_upper, normal_point, THK)
 
+
     # filling the leaflet with points.
     for iterThickness in range(1, 3):
         if iterThickness == 1:
             temp_spline_mid = middle_spline
+            # temp_fcvt_spline = FCVT_spline
             t_cl = temp_contour_leaf
             temporal_points = points
             t_ts = tempTopSpline
         else:
             temp_spline_mid = shift_by_normal(middle_spline, normal_point, THK)
+            # temp_fcvt_spline = shift_by_normal(FCVT_spline, normal_point, THK)
             t_cl = shift_by_normal(temp_contour_leaf, normal_point, THK)
             temporal_points = points
             t_ts = shift_by_normal(tempTopSpline, normal_point, THK)
@@ -950,6 +993,14 @@ def generate_leaflet_pointcloud(
             iter_x = temp_spline_mid[0, i]
             ind_low = np.argmin(np.abs(iter_x - np.transpose(t_cl[0, :])))
             ind_top = np.argmin(np.abs(iter_x - np.transpose(t_ts[0, :])))
+            #
+            # ind_fcvt = np.argmin(np.abs(iter_x - np.transpose(temp_fcvt_spline[0,:])))
+            # if np.abs(temp_fcvt_spline[0,ind_fcvt] - iter_x) <= mesh_step and np.abs(temp_fcvt_spline[2,ind_fcvt] - temp_spline_mid[2, i]) > mesh_step:
+            #     if temp_fcvt_spline[2, ind_fcvt] < temp_spline_mid[2, i]:
+            #         t_spline_bot = np.array([t_cl[:, ind_low], temp_fcvt_spline[:,ind_fcvt],  temp_spline_mid[:, i],t_ts[:, ind_top]])
+            #     else:
+            #         t_spline_bot = np.array([t_cl[:, ind_low], temp_spline_mid[:, i], temp_fcvt_spline[:,ind_fcvt], t_ts[:, ind_top]])
+            # else:
             t_spline_bot = np.array([t_cl[:, ind_low], temp_spline_mid[:, i], t_ts[:, ind_top]])
             t_spline2 = np.array(perform_interpolation(20, t_spline_bot.T[0], t_spline_bot.T[1], t_spline_bot.T[2], key='pchip'), dtype='float64')
             dx = np.array(np.diff(np.transpose(t_spline2[0, :])), dtype='float64')
@@ -982,13 +1033,16 @@ def generate_leaflet_pointcloud(
             except:
                 curr_spline = curr_spline
             temporal_points = np.append(temporal_points, curr_spline, axis=1)
+            ax.scatter(curr_spline[0],curr_spline[1],curr_spline[2], c='r', marker='*')
 
             del ind_low, vec_del_ind, ind_top, curr_spline, dx, dy, dz, distances_between_vertices, distance
+
 
         if iterThickness == 1:
             points_inflow = temporal_points
         else:
             points_outflow = temporal_points
+        plt.show()
         leaflet_shifted = np.append(leaflet_shifted, temporal_points, axis=1)
     if THK > mesh_step:
         leaflet_shifted = np.append(leaflet_shifted, out_points_hull_lower_shifted, axis=1)

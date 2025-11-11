@@ -522,7 +522,7 @@ def write_inp_contact(
         fileID.write('*Material, name=%s\n' % MaterialName)
         fileID.write('*Density\n')
         fileID.write(' %.2e,\n' % Dens)
-        fileID.write('*Hyperelastic, n=2, reduced polynomial, test data input, poisson=%.3f\n' % get_poisson_coeff())
+        fileID.write('*Hyperelastic, n=2, reduced polynomial, test data input, poisson=%.3f\n' % get_poisson_coeffs())
         fileID.write('*Uniaxial Test Data\n' % ())
         material_uniaxial_data = _read_csv_data()
         for strain, stress in material_uniaxial_data:

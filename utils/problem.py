@@ -12,15 +12,15 @@ from utils.global_variable import (get_id, set_id, get_problem_name, get_mesh_st
                                    get_cpus, get_base_name, get_s_lim, get_direction,
                                    change_direction, get_valve_position)
 from pymoo.problems import get_problem
-from utils.get_history_output import get_history_output as get_history_output
-from utils.run_abaqus import run_abaqus as run_abaqus
-from utils.read_data import read_data
-from utils.purgeFiles import purgeFiles
+from utils.compute_utils import get_history_output as get_history_output
+from utils.compute_utils import run_abaqus as run_abaqus
+from utils.fea_results_utils import read_data
+from utils.project_utils import purgeFiles
 from utils.logger_leaflet import configure_log_leaflet, cleanup_log_leaflet
-from utils.generateShell import generateShell
-from utils.createGeometry import createGeometry
+from utils.create_geometry_utils import generateShell
+from utils.create_geometry_utils import generate_leaflet_pointcloud as createGeometry
 from utils.logger_leaflet import log_message
-from utils.write_inp import write_inp_shell, write_inp_contact
+from utils.create_input_files import write_inp_shell, write_inp_contact
 import os
 
 now = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-').split('.')[0]
@@ -335,7 +335,6 @@ class Procedure:
                     "VMS-Smax": 5
                 }
 
-                set_dead_objects(get_dead_objects() + 1)
                 return {"objectives": objectives_dict, "constraints": constraints_dict}
 
         def run_leaflet_contact(self, params) -> dict:
