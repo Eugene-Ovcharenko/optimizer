@@ -63,7 +63,7 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
         if hasattr(cfg.problem_definition, 'Lift'):
                 set_Lift(float(cfg.problem_definition.Lift))
         else:
-            print('No attr \'problem_definition.DIA\'. Set default - 0 mm')
+            print('No attr \'problem_definition.Lift\'. Set default - 0 mm')
             set_Lift(0.)
 
     if 'SEC' not in parameters.keys():

@@ -167,7 +167,7 @@ def set_SEC(val: float):
     params.SEC = val
 
 def set_HGT(val: float):
-    params.DIA = val
+    params.HGT = val
 
 def set_THK(val: float):
     params.THK = val

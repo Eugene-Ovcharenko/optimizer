@@ -226,18 +226,20 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2_koka.yaml'
+config_name='config_leaf_NSGA2_Kost_4attempt.yaml'
 
 @hydra.main(config_path="configuration", config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:
 
     parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
-    trade_off_df = pd.read_excel(os.path.join('results/005_26_06_2025','history.xlsx'), sheet_name='Sheet1')
+    trade_off_df = pd.read_excel(os.path.join('results/004_10_12_2025','history.xlsx'), sheet_name='Sheet1')
 
+    colname = 'Unnamed: 0' if 'Unnamed: 0' in trade_off_df.columns else 'Column1'
+    
     for index, row in trade_off_df.iterrows():
-        if row['Unnamed: 0'] in [1260]:
-            set_id(f'{row["generation"]}_{row["Unnamed: 0"]}')
+        if row[colname] in [2803, 198, 2550, 24, 196]:
+            set_id(f'{row["generation"]}_{row[colname]}')
 
             params = {f'{param}': row[param] for param in parameters}
 

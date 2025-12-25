@@ -29,7 +29,7 @@ parser.add_argument(
     "-c", "--config",
     type=str,
     dest='config_name',
-    default='config_leaf_NSGA2_Kost',
+    default='config_leaf_NSGA2_Kost_4attempt',
     help="Specify config .yaml name."
 )
 
@@ -353,7 +353,7 @@ def main(cfg:DictConfig) -> None:
     save_callback = CustomCallback(
         objectives=objectives,
         folder_path=basic_folder_path,
-        interval_backup=5,
+        interval_backup=1,
         interval_picture=1
     )
 
