@@ -109,7 +109,7 @@ def run_leaflet_contact(params):
             o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel(0))
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points.T)
-            mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.5 * k)
+            mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.7 * k)
             _ = o3d.io.write_triangle_mesh('./utils/geoms/temp_' + '.ply', mesh, write_vertex_normals=True)
 
             mesh = trimesh.load_mesh('./utils/geoms/temp_' + '.ply')
@@ -238,7 +238,7 @@ def main(cfg:DictConfig) -> None:
     colname = 'Unnamed: 0' if 'Unnamed: 0' in trade_off_df.columns else 'Column1'
     
     for index, row in trade_off_df.iterrows():
-        if row[colname] in [2803, 198, 2550, 24, 196]:
+        if row[colname] in [2550]:
             set_id(f'{row["generation"]}_{row[colname]}')
 
             params = {f'{param}': row[param] for param in parameters}

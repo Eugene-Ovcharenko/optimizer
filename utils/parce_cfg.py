@@ -167,13 +167,13 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
 
     # check material-related parameters
     if hasattr(cfg.problem_definition.material, 'material_definition_type'):
-        if cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'polynomial', 'ortho']:
+        if cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'test_data', 'polynomial', 'ortho']:
             set_material_type(cfg.problem_definition.material.material_definition_type)
         else:
             print('No attr \'problem_definition.material.material_definition_type\'. Set default - \'linear\'')
             set_material_type('linear')
 
-    if cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'polynomial']:
+    if cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'test_data']:
         if hasattr(cfg.problem_definition.material, 'EM') \
                 and not hasattr(cfg.problem_definition.material, 'material_csv_path'):
             set_EM(float(cfg.problem_definition.material.EM))
@@ -186,7 +186,7 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
                 and hasattr(cfg.problem_definition.material, 'material_csv_path'):
             if cfg.problem_definition.material.EM > 0:
                 print(f"\t\tYou entered positive EM = {cfg.problem_definition.material.EM}."
-                      f" Using linear model. Found .csv name, either delete EM row or set -1 to use polynomial model")
+                      f" Using linear model. Found .csv name, either delete EM row or set -1 to use test data model")
                 set_EM(float(cfg.problem_definition.material.EM))
                 set_material_csv_path(str(None))
             else:
@@ -208,11 +208,16 @@ def parce_cfg(cfg:DictConfig, globalPath=None) -> tuple[dict, list[str], list[st
             else:
                 print('No attr \'problem_definition.material.ortho_coeffs_poisson\'. Exit')
                 error_count += 1
-
+        elif cfg.problem_definition.material.material_definition_type.lower() in ['polynomial']:
+            if hasattr(cfg.problem_definition.material, 'coeffs'):
+                set_coeffs(list(cfg.problem_definition.material.coeffs))
+            else:
+                print('No attr \'problem_definition.material.ortho_coeffs_poisson\'. Exit')
+                error_count += 1
     if hasattr(cfg.problem_definition.material, 'poisson_coeff') \
-            and cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'polynomial']:
+            and cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'test_data']:
         set_poisson_coeffs(cfg.problem_definition.material.poisson_coeff)
-    elif cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'polynomial']:
+    elif cfg.problem_definition.material.material_definition_type.lower() in ['linear', 'test_data']:
         print('No attr \'problem_definition.material.poisson_coeff\'. Set default - 0.495 ')
         set_poisson_coeffs(0.495)
 

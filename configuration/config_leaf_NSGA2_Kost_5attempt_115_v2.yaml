@@ -1,0 +1,57 @@
+parameters:
+  THK: [0.1, 0.4]
+  ANG: [-20, 20]
+  CVT: [0.1, 0.8]
+  LAS: [0.1, 2.0]
+
+objectives:
+  - -10*LMN_open^2
+  - LMN_closed
+  - Smax
+  - HELI
+
+problem_definition:
+  name: RNF_Kost_5attempt_115_v2
+  check_unfolding: False
+  position: mitr
+  problem_name: leaflet_contact
+  DIA: 23.6
+  Lstr: 1
+  Lift: 0
+  HGT: 10.4
+  SEC: 115
+  mesh_step: 0.45
+  material:
+    material_definition_type: linear
+    material_name: Durathane5_and_CNT1
+    EM: 10.3
+    poisson_coeff: 0.495
+    Dens: 1.02e-9
+    s_lim: 38.3
+
+Abaqus:
+  abq_cpus: 3
+  tangent_behavior: 1
+  normal_behavior: 0.2
+
+
+optimizer:
+  pop_size: 200
+  offsprings: 50
+  crossover_chance: 0.9
+  mutation_chance: 0.3
+  crossover_eta: 50
+  mutation_eta: 100
+  termination_parameters:
+    xtol: 1e-4
+    cvtol: 1e-4
+    ftol: 0.0025
+    period: 1
+    n_max_gen: 20000
+    n_max_evals: 100000
+
+hydra:
+  run:
+    dir: .
+
+

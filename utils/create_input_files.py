@@ -2,7 +2,8 @@ import os
 import csv
 import numpy as np
 from utils.global_variable import get_direction, get_material_csv_path,\
-    get_global_path, get_material_type, get_e_coeffs, get_poisson_coeffs
+    get_global_path, get_material_type, get_e_coeffs, get_poisson_coeffs, \
+    get_coeffs
 
 
 def _read_csv_data() -> list:
@@ -518,7 +519,7 @@ def write_inp_contact(
         fileID.write(' %.2e,\n' % Dens)
         fileID.write('*Elastic\n')
         fileID.write('%f, 0.495\n' % (Emod))
-    elif get_material_type().lower() == 'polynomial':
+    elif get_material_type().lower() == 'test_data':
         fileID.write('*Material, name=%s\n' % MaterialName)
         fileID.write('*Density\n')
         fileID.write(' %.2e,\n' % Dens)
@@ -527,6 +528,21 @@ def write_inp_contact(
         material_uniaxial_data = _read_csv_data()
         for strain, stress in material_uniaxial_data:
             fileID.write(f'   {strain:.3f}, {stress:.2f}\n')
+    elif get_material_type().lower() == 'polynomial':
+        coeffs = get_coeffs()
+        fileID.write('*Material, name=%s\n' % MaterialName)
+        fileID.write('*Density\n')
+        fileID.write(' %.2e,\n' % Dens)
+        fileID.write('*Hyperelastic, n=%d, reduced polynomial\n' % ( int(len(coeffs) - 3)))
+        for index, val in enumerate(coeffs):
+            if index == len(coeffs) - 1:
+                fileID.write(' %.10e' % val)
+            elif index >= len(coeffs) - 3:
+                fileID.write(' %.10e,' % val)
+            else:
+                fileID.write(' %.10f,' % val)
+        fileID.write('\n')
+        del coeffs
     elif get_material_type().lower() == 'ortho':
         fileID.write('*Material, name=%s\n' % MaterialName)
         fileID.write('*Density\n')

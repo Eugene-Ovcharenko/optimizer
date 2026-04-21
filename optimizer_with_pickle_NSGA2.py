@@ -26,10 +26,10 @@ from utils.visualize import *
 parser = argparse.ArgumentParser(description="A script that demonstrates command-line arguments with flags.")
 
 parser.add_argument(
-    "-c", "--config",
+    "-cf", "--config-name",
     type=str,
     dest='config_name',
-    default='config_leaf_NSGA2_Kost_4attempt',
+    default='config_leaf_NSGA2_Kost_6attempt',
     help="Specify config .yaml name."
 )
 

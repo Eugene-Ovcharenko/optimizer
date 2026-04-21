@@ -57,6 +57,7 @@ class Params:
     abq_norm_beh = 0
     global_path = ''
     material_type = ''
+    coeffs = []
     e_coeffs = []
     poisson_coeffs = []
     parameters_list = []
@@ -67,7 +68,7 @@ class Params:
                  percent, problem_name, id, cpus, mesh_step,
                  baseName, Slim, direction, valve_position,
                  DIA, Lift, SEC, EM, density, material_name, material_csv_path,
-                 abq_tangent_behavior, abq_normal_behavior, global_path, material_type,
+                 abq_tangent_behavior, abq_normal_behavior, global_path, material_type, coeffs,
                  e_coeffs, poisson_coeffs, FCVT, parameters_list, objectives_list, constraints_list, HGT, THK, ANG, Lstr, LAS, CVT, check_unfolding):
         self.percent = percent
         if (
@@ -108,6 +109,7 @@ class Params:
         self.abq_norm_beh = abq_normal_behavior
         self.global_path = global_path
         self.material_type = material_type
+        self.coeffs = coeffs
         self.e_coeffs = e_coeffs
         self.poisson_coeffs = poisson_coeffs
         self.FCVT = FCVT
@@ -135,6 +137,7 @@ params = Params(
     abq_normal_behavior=0.2,
     global_path='',
     material_type='linear',
+    coeffs=[],
     e_coeffs=[],
     poisson_coeffs=[],
     parameters_list=[],
@@ -248,11 +251,11 @@ def set_global_path(val: str):
 
 
 def set_material_type(val: str):
-    if val.lower() in ['linear', 'polynomial', 'ortho']:
+    if val.lower() in ['linear', 'test_data', 'polynomial', 'ortho']:
         params.material_type = val
     else:
         print(f'\t\t\tParameters setter -> material_type: wrong parameter {val}.'
-              f'Allowed:  [\'linear\', \'polynomial\', \'ortho\']')
+              f'Allowed:  [\'linear\', \'test_data\',  \'polynomial\', \'ortho\']')
         sys.exit()
 
 
@@ -261,6 +264,9 @@ def set_e_coeffs(val: list):
 
 def set_poisson_coeffs(val: Union[float, list]):
     params.poisson_coeffs = val
+
+def set_coeffs(val: list):
+    params.coeffs = val
 
 def set_parameters_list(val: Union[list]):
     params.parameters_list = val
@@ -382,6 +388,9 @@ def get_material_type() -> str:
 
 def get_e_coeffs() -> list[float]:
     return params.e_coeffs
+
+def get_coeffs() -> list[float]:
+    return params.coeffs
 
 def get_poisson_coeffs() -> Union[list[float], float]:
     return params.poisson_coeffs
