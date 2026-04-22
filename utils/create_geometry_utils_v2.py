@@ -895,11 +895,11 @@ def generate_leaflet_pointcloud(
     #                         dtype='float64')
     del tSplin, leaf_spline
 
-    fig = plt.figure(figsize=(12,10))
-    ax = fig.add_subplot(111,projection='3d')
-    ax.scatter(points_hull_lower[0],points_hull_lower[1],points_hull_lower[2], c='k', marker='.')
-    ax.scatter(points_hull_upper[0],points_hull_upper[1],points_hull_upper[2], c='b', marker='.')
-    ax.scatter(middle_spline[0],middle_spline[1],middle_spline[2], c='c', marker='.')
+    #fig = plt.figure(figsize=(12,10))
+    #ax = fig.add_subplot(111,projection='3d')
+    #ax.scatter(points_hull_lower[0],points_hull_lower[1],points_hull_lower[2], c='k', marker='.')
+    #ax.scatter(points_hull_upper[0],points_hull_upper[1],points_hull_upper[2], c='b', marker='.')
+    #ax.scatter(middle_spline[0],middle_spline[1],middle_spline[2], c='c', marker='.')
     # ax.scatter(FCVT_spline[0],FCVT_spline[1],FCVT_spline[2], c='c', marker='.')
     # ax.scatter(temp_leaf_spline[0],temp_leaf_spline[1],temp_leaf_spline[2], c='g', marker='*')
 
@@ -1033,7 +1033,7 @@ def generate_leaflet_pointcloud(
             except:
                 curr_spline = curr_spline
             temporal_points = np.append(temporal_points, curr_spline, axis=1)
-            ax.scatter(curr_spline[0],curr_spline[1],curr_spline[2], c='r', marker='*')
+            #ax.scatter(curr_spline[0],curr_spline[1],curr_spline[2], c='r', marker='*')
 
             del ind_low, vec_del_ind, ind_top, curr_spline, dx, dy, dz, distances_between_vertices, distance
 
@@ -1042,7 +1042,7 @@ def generate_leaflet_pointcloud(
             points_inflow = temporal_points
         else:
             points_outflow = temporal_points
-        plt.show()
+        #plt.show()
         leaflet_shifted = np.append(leaflet_shifted, temporal_points, axis=1)
     if THK > mesh_step:
         leaflet_shifted = np.append(leaflet_shifted, out_points_hull_lower_shifted, axis=1)

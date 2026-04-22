@@ -367,7 +367,7 @@ def write_inp_contact(
     fileID.write('*Elset, elset=Set-2, generate\n')
     fileID.write('\t%d,\t%d,\t%d\n' % (1, len(Elements), 1))
     fileID.write('** Section: Section-1-Set-2\n')
-    fileID.write('*Shell Section, elset=Set-2, material=%s, offset=SPOS' % MaterialName)
+    fileID.write('*Shell Section, elset=Set-2, material=%s, offset=SNEG' % MaterialName)
     if get_material_type().lower() == 'ortho':
         fileID.write(', orientation=MaterialOrientation')
     fileID.write('\n %f, 9\n*End Part\n' % THC)

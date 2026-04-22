@@ -56,17 +56,35 @@ def evaluate_developability(points_inner, shell_elements, tolerance=1e-3, visual
     boundary_vertices = _find_boundary_vertices(elements, n_points)
     gaussian_curvatures = _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertices)
 
-    max_curvature = np.max(np.abs(gaussian_curvatures))
-    mean_curvature = np.mean(np.abs(gaussian_curvatures))
+    # Filter out boundary vertices for developability check (Theorema Egregium applies to internal surface)
+    # Boundary values represent geodesic curvature, which is allowed for developable surfaces.
+    boundary_set = set(boundary_vertices)
+    internal_mask = np.ones(n_points, dtype=bool)
+    if boundary_vertices:
+        internal_mask[list(boundary_set)] = False
+    
+    if np.any(internal_mask):
+        internal_curvatures = gaussian_curvatures[internal_mask]
+        max_curvature = np.max(np.abs(internal_curvatures))
+        mean_curvature = np.mean(np.abs(internal_curvatures))
+        high_curvature_points = np.sum(np.abs(internal_curvatures) > tolerance)
+        percentile_95 = np.percentile(np.abs(internal_curvatures), 95)
+    else:
+        max_curvature = 0.0
+        mean_curvature = 0.0
+        high_curvature_points = 0
+        percentile_95 = 0.0
+
     is_developable = max_curvature < tolerance
 
     curvature_stats = {
         'max_abs_curvature': max_curvature,
         'mean_abs_curvature': mean_curvature,
         'std_curvature': np.std(gaussian_curvatures),
-        'percentile_95': np.percentile(np.abs(gaussian_curvatures), 95),
-        'high_curvature_points': np.sum(np.abs(gaussian_curvatures) > tolerance),
-        'boundary_points': len(boundary_vertices)
+        'percentile_95': percentile_95,
+        'high_curvature_points': high_curvature_points,
+        'boundary_points': len(boundary_vertices),
+        'max_boundary_curvature': np.max(np.abs(gaussian_curvatures[list(boundary_set)])) if boundary_vertices else 0
     }
 
     unfold_result = unfold_surface(points_inner, shell_elements, method=method)
@@ -176,7 +194,21 @@ def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertic
     angle_sums = np.zeros(n_points)
 
     boundary_set = set(boundary_vertices)
-    corner_vertices = _detect_corner_vertices(points, elements, boundary_vertices)
+    
+    # Build boundary graph for angle calculation
+    boundary_graph = {}
+    for v in boundary_vertices:
+        boundary_graph[v] = []
+
+    for face in elements:
+        for i in range(3):
+            v1, v2 = face[i], face[(i + 1) % 3]
+            if v1 in boundary_set and v2 in boundary_set:
+                boundary_graph[v1].append(v2)
+                boundary_graph[v2].append(v1)
+
+    for v in boundary_graph:
+        boundary_graph[v] = list(set(boundary_graph[v]))
 
     for face in elements:
         idx0, idx1, idx2 = face
@@ -215,11 +247,27 @@ def _compute_gaussian_curvature_boundary_aware(points, elements, boundary_vertic
 
     for i in range(n_points):
         if vertex_areas[i] > 1e-12:
-            if i in corner_vertices:
-                expected_angle = corner_vertices[i]
-                gaussian_curvs[i] = 0#(expected_angle - angle_sums[i]) / vertex_areas[i]
-            elif i in boundary_set:
-                gaussian_curvs[i] = 0# (np.pi - angle_sums[i]) / vertex_areas[i]
+            if i in boundary_set:
+                neighbors = boundary_graph.get(i, [])
+                if len(neighbors) == 2:
+                    p0 = points[i]
+                    p1 = points[neighbors[0]]
+                    p2 = points[neighbors[1]]
+
+                    vec1 = p1 - p0
+                    vec2 = p2 - p0
+
+                    norm1 = np.linalg.norm(vec1)
+                    norm2 = np.linalg.norm(vec2)
+
+                    if norm1 > 1e-12 and norm2 > 1e-12:
+                        cos_angle = np.clip(np.dot(vec1, vec2) / (norm1 * norm2), -1, 1)
+                        boundary_angle = np.arccos(cos_angle)
+                        gaussian_curvs[i] = (boundary_angle - angle_sums[i]) / vertex_areas[i]
+                    else:
+                        gaussian_curvs[i] = 0
+                else:
+                    gaussian_curvs[i] = 0
             else:
                 gaussian_curvs[i] = (2 * np.pi - angle_sums[i]) / vertex_areas[i]
 

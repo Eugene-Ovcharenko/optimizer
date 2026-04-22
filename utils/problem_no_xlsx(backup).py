@@ -12,8 +12,10 @@ from utils.compute_utils import run_abaqus
 from utils.fea_results_utils import read_data
 from utils.project_utils import purgeFiles
 from utils.create_geometry_utils_v2 import generateShell
-from utils.mesh_utils import triangulate_points_pca, evaluate_leaflet_developability
+from utils.gaussian_curvature_v2 import evaluate_developability
+from utils.unfolding_utils import gaussian_tolerance_from_area_strain
 from utils.create_input_files import write_inp_shell, write_inp_contact
+import os
 import os
 
 now = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-').split('.')[0]
@@ -114,7 +116,6 @@ class Procedure:
                 MaterialName = get_material_name()
                 PressType = get_valve_position()  # can be 'vent'
                 fileName = baseName + '.inp'
-                # 1. Geometry Generation (Existing)
                 try:
                     if 'FCVT' in get_parameters_list():
                         pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
@@ -128,29 +129,37 @@ class Procedure:
                 except Exception as e:
                     raise e
 
-                # 2. New Meshing (Replacing Open3D)
+                k = 1.1
+                flag_calk_k = True
+                while flag_calk_k:
+                    try:
+                        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel(0))
+                        pcd = o3d.geometry.PointCloud()
+                        pcd.points = o3d.utility.Vector3dVector(points.T)
+                        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.5 * k)
+                        _ = o3d.io.write_triangle_mesh(path_utils+'/geoms/temp.ply', mesh, write_vertex_normals=True)
+
+                        mesh = trimesh.load_mesh(path_utils+'/geoms/temp.ply')
+                        mesh.fix_normals()  # fix wrong normals
+                        mesh.export(path_utils+'/geoms/temp.stl')
+
+                        flag_calk_k = False
+                    except:
+                        k += 0.1
+
+                tt2 = datetime.datetime.now()
+
                 try:
-                    pts = pointsInner.T if pointsInner.shape[0] == 3 else pointsInner
-                    shellEle = triangulate_points_pca(pts, mesh_step, filter_options=['area'])
-                    shellNode = pts
-                    
-                    # Identify fixed BC nodes
-                    fixed_bc = []
-                    phl = pointsHullLower.T if pointsHullLower.shape[0] == 3 else pointsHullLower
-                    for i in range(phl.shape[0]):
-                        dists = np.linalg.norm(shellNode - phl[i], axis=1)
-                        idx = np.argmin(dists)
-                        if dists[idx] < mesh_step * 0.1:
-                            fixed_bc.append(idx)
-                    fixed_bc = np.unique(fixed_bc)
-                    
+                    shellNode, shellEle, fixed_bc = generateShell(points=mesh.vertices, elements=mesh.faces,
+                                                                  pointsInner=pointsInner,
+                                                                  pointsHullLower=pointsHullLower, meshStep=mesh_step)
+                    tt2 = datetime.datetime.now()
                     message = 'done'
                     log_message(
                         message + '. Mesh nodes is ' + str(len(shellNode)) + '. Elements is ' + str(len(shellEle)))
+
                 except Exception as e:
                     raise e
-
-                tt2 = datetime.datetime.now()
 
                 del mesh
                 inpFileName = str(inpDir) + str(baseName)
@@ -336,7 +345,6 @@ class Procedure:
                 MaterialName = get_material_name()
                 PressType = get_valve_position()  # can be 'vent'
                 fileName = baseName + '.inp'
-                # 1. Geometry Generation (Existing)
                 try:
                     if 'FCVT' in get_parameters_list():
                         pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
@@ -350,53 +358,60 @@ class Procedure:
                 except Exception as e:
                     raise e
 
-                # 2. New Meshing (Replacing Open3D)
-                try:
-                    pts = pointsInner.T if pointsInner.shape[0] == 3 else pointsInner
-                    shellEle = triangulate_points_pca(pts, mesh_step, filter_options=['area'])
-                    shellNode = pts
-                    
-                    # Identify fixed BC nodes
-                    fixed_bc = []
-                    phl = pointsHullLower.T if pointsHullLower.shape[0] == 3 else pointsHullLower
-                    for i in range(phl.shape[0]):
-                        dists = np.linalg.norm(shellNode - phl[i], axis=1)
-                        idx = np.argmin(dists)
-                        if dists[idx] < mesh_step * 0.1:
-                            fixed_bc.append(idx)
-                    fixed_bc = np.unique(fixed_bc)
-                    
-                    message = 'done'
-                    log_message(
-                        message + '. Mesh nodes is ' + str(len(shellNode)) + '. Elements is ' + str(len(shellEle)))
-                except Exception as e:
-                    raise e
+                k = 1.1
+                flag_calk_k = True
+                while flag_calk_k:
+                    try:
+                        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel(0))
+                        pcd = o3d.geometry.PointCloud()
+                        pcd.points = o3d.utility.Vector3dVector(points.T)
+                        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.5 * k)
+                        _ = o3d.io.write_triangle_mesh(path_utils+'/geoms/temp.ply', mesh,
+                                                       write_vertex_normals=True)
+
+                        mesh = trimesh.load_mesh(path_utils+'/geoms/temp.ply')
+                        mesh.fix_normals()  # fix wrong normals
+                        mesh.export(path_utils+'/geoms/temp.stl')
+
+                        flag_calk_k = False
+                    except:
+                        k += 0.1
 
                 tt2 = datetime.datetime.now()
 
+                try:
+                    shellNode, shellEle, fixed_bc = generateShell(points=mesh.vertices, elements=mesh.faces,
+                                                                  pointsInner=pointsInner,
+                                                                  pointsHullLower=pointsHullLower, meshStep=mesh_step)
+                    tt2 = datetime.datetime.now()
+                    message = 'done'
+                    log_message(
+                        message + '. Mesh nodes is ' + str(len(shellNode)) + '. Elements is ' + str(len(shellEle)))
+
+                except Exception as e:
+                    raise e
                 results = {}
                 K_max = None
                 if get_check_unfolding():
-                    # Use new robust developability assessment
-                    dev_index, is_dev, dev_results = evaluate_leaflet_developability(
-                        points=shellNode,
-                        elements=shellEle,
-                        DIA=DIA,
-                        points_to_exclude=pointsHullLower,
-                        mesh_step=mesh_step
+                    K_toll = gaussian_tolerance_from_area_strain(diameter_mm=DIA, max_area_strain=0.15)
+                    results = evaluate_developability(
+                        points_inner=shellNode,
+                        tolerance=K_toll,
+                        shell_elements=shellEle,
+                        visualize=False,
+                        method="pca"
                     )
 
-                    if is_dev:
+                    if results['is_developable']:
                         K_max = 0
                     else:
-                        K_max = dev_results['k_rms'] # Using RMS as the scale-independent metric
-                        
+                        K_max = results['curvature_stats']['max_abs_curvature']
                         if (
                                 'K_max' in get_objectives_list()
                                 or 'K_max' in get_constraints_list()
                                 or 'K_max' in get_parameters_list()
                         ):
-                            if K_max > dev_results['t_adj']:
+                            if K_max > 1e-3:
                                 res_dict = {
                                     'LMN_open': 0.0,
                                     "LMN_closed": 2,
@@ -407,7 +422,7 @@ class Procedure:
                                 }
 
                                 return {"results": res_dict}
-                del results
+                del mesh, results
 
                 inpFileName = str(inpDir) + str(baseName)
                 jobName = str(baseName) + '_Job'
