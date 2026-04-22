@@ -353,7 +353,7 @@ class Procedure:
                 # 2. New Meshing (Replacing Open3D)
                 try:
                     pts = pointsInner.T if pointsInner.shape[0] == 3 else pointsInner
-                    shellEle = triangulate_points_pca(pts, mesh_step, filter_options=['area'])
+                    shellEle = triangulate_points_pca(pts, mesh_step, filter_options=['edge', 'area'])
                     shellNode = pts
                     
                     # Identify fixed BC nodes

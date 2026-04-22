@@ -192,8 +192,8 @@ def purgeFiles(
 
     if str.upper(sys.platform) == 'WIN32':
         rm_com = 'del '
-        os.system('rmdir /s /q ' + endPath + partName[0:-5].upper())
-        os.system(pathToAbaqus + jobName + ".sim* ")
+        os.system('rmdir /s /q ' + endPath.replace('/', '\\') + partName[0:-5].upper())
+        os.system('rmdir /s /q ' + pathToAbaqus.replace('/', '\\') + jobName + ".sim* ")
     else:
         rm_com = 'rm -r '
         os.system(rm_com + endPath + partName[0:-5].upper())

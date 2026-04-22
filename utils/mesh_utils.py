@@ -38,7 +38,7 @@ def triangulate_points_pca(points, mesh_step, filter_options=None):
     initial_count = len(elements)
     
     # 3. Filtering
-    max_edge_len = mesh_step * 2.0
+    max_edge_len = mesh_step * 5.0
     
     # Calculate areas for area-based filtering
     areas = []
@@ -77,7 +77,7 @@ def triangulate_points_pca(points, mesh_step, filter_options=None):
             continue
             
         # Area filter (e.g., < 25% of average)
-        if 'area' in filter_options and areas[i] < 0.25 * avg_area:
+        if 'area' in filter_options and areas[i] < 0.05 * avg_area:
             report['removed_area'] += 1
             continue
             
@@ -93,16 +93,16 @@ def triangulate_points_pca(points, mesh_step, filter_options=None):
     
     report['final_count'] = len(filtered_elements)
     
-    print("\n--- Triangulation Report ---")
-    print(f"Initial elements: {report['initial_count']}")
-    if 'edge' in filter_options:
-        print(f"Removed by edge length (> {max_edge_len:.2f}): {report['removed_edge']}")
-    if 'area' in filter_options:
-        print(f"Removed by small area (< {0.25*avg_area:.4f}) | {avg_area:.4f}: {report['removed_area']}")
-    if 'curvature' in filter_options:
-        print(f"Removed by extreme curvature: {report['removed_curvature']}")
-    print(f"Final elements: {report['final_count']}")
-    print("----------------------------\n")
+    # print("\n--- Triangulation Report ---")
+    # print(f"Initial elements: {report['initial_count']}")
+    # if 'edge' in filter_options:
+    #     print(f"Removed by edge length (> {max_edge_len:.2f}): {report['removed_edge']}")
+    # if 'area' in filter_options:
+    #     print(f"Removed by small area (< {0.05*avg_area:.4f}) | {avg_area:.4f}: {report['removed_area']}")
+    # if 'curvature' in filter_options:
+    #     print(f"Removed by extreme curvature: {report['removed_curvature']}")
+    # print(f"Final elements: {report['final_count']}")
+    # print("----------------------------\n")
             
     return np.array(filtered_elements)
 
