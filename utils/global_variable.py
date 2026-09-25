@@ -409,7 +409,7 @@ def get_check_unfolding() -> bool:
 
 
 def reset_direction() -> None:
-    params.valve_position = 'direct'
+    params.direction = 'direct'
 
 
 def change_direction():

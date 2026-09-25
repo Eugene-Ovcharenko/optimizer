@@ -2,11 +2,12 @@ import os
 import datetime
 import time
 import subprocess
+import signal
 import psutil as psu
 from utils.global_variable import get_problem_name, get_cpus, get_global_path
 
 
-def run_abaqus(
+def run_abaqus_old(
     Path: str = None,
     jobName: str = None,
     InpFile: str = None,
@@ -84,6 +85,429 @@ def run_abaqus(
         message = 'runanaqus error: InpFile submit failed'
         os.chdir(get_global_path())
     return message
+
+def _kill_process_tree(pid):
+    """Kill process and all its descendants by PID."""
+    try:
+        parent = psu.Process(pid)
+    except psu.NoSuchProcess:
+        return
+
+    try:
+        children = parent.children(recursive=True)
+    except psu.NoSuchProcess:
+        children = []
+
+    # Сначала дети
+    for child in reversed(children):
+        try:
+            child.kill()
+        except (psu.NoSuchProcess, psu.AccessDenied):
+            pass
+
+    # Затем родитель
+    try:
+        parent.kill()
+    except (psu.NoSuchProcess, psu.AccessDenied):
+        pass
+
+
+def _get_job_processes(jobName):
+    """
+    Return Abaqus processes whose command line references this job.
+
+    Processes are returned as psutil.Process objects.
+
+    No pkill is used.
+    """
+
+    me = os.getpid()
+    result = []
+
+    jobName = str(jobName)
+
+    for proc in psu.process_iter(
+        ['pid', 'cmdline', 'name']
+    ):
+
+        try:
+
+            info = proc.info
+
+            if info['pid'] == me:
+                continue
+
+            cmdline = info.get('cmdline')
+
+            if not cmdline:
+                continue
+
+            joined = ' '.join(cmdline)
+
+            # Process belongs to this Abaqus job
+            if (
+                jobName in joined
+                and 'abaqus' in joined.lower()
+            ):
+                result.append(proc)
+
+        except (
+            psu.NoSuchProcess,
+            psu.AccessDenied
+        ):
+            continue
+
+    return result
+
+
+def _get_job_stage_pid(jobName, stage):
+    """
+    Find PID of a particular Abaqus stage.
+
+    stage:
+        'pre'
+        'package'
+        'explicit'
+    """
+
+    stage = stage.lower()
+
+    for proc in _get_job_processes(jobName):
+
+        try:
+
+            name = proc.name().lower()
+
+            if stage in name:
+                return proc.pid
+
+        except (
+            psu.NoSuchProcess,
+            psu.AccessDenied
+        ):
+            continue
+
+    return None
+
+
+def _kill_job_pids(jobName, suppress_print):
+    """
+    Kill only processes belonging to this Abaqus job.
+
+    Processes are identified by PID after psutil enumeration.
+    No pkill/pattern-based killing is used.
+    """
+
+    for proc in _get_job_processes(jobName):
+
+        try:
+            pid = proc.pid
+            if not suppress_print:
+                print(
+                    f"[{jobName}] Killing PID={pid}, "
+                    f"name={proc.name()}"
+                )
+
+            _kill_process_tree(pid)
+
+        except (
+            psu.NoSuchProcess,
+            psu.AccessDenied
+        ):
+            continue
+
+
+def run_abaqus(
+    Path: str = None,
+    jobName: str = None,
+    InpFile: str = None,
+    cpus: int = None,
+    timeout_s=None,
+    stage_timeout_s=60,
+    debug=False,
+    suppress_print = True,
+) -> str:
+    """
+    Run Abaqus and monitor the Explicit solver.
+
+    Logic:
+
+        Abaqus launcher
+              |
+              +-- pre
+              |
+              +-- package
+              |
+              +-- explicit
+                    |
+                    +-- running
+                    |
+                    +-- finished
+
+    .lck is NOT used.
+
+    The Abaqus launcher process itself is NOT used as an indicator
+    of calculation completion because it can terminate before
+    `explicit` starts.
+
+    Parameters
+    ----------
+    Path : str
+        Abaqus working directory.
+
+    jobName : str
+        Abaqus job name.
+
+    InpFile : str
+        Input file.
+
+    cpus : int
+        Number of CPUs.
+
+    timeout_s : float or None
+        Total calculation timeout.
+
+    stage_timeout_s : float
+        Maximum allowed time for pre/package before explicit starts.
+
+    debug : bool
+        If True, Abaqus stdout/stderr are not suppressed.
+    """
+
+    if not Path:
+        raise ValueError("Path is not specified")
+
+    if not jobName:
+        raise ValueError("jobName is not specified")
+
+    if not InpFile:
+        raise ValueError("InpFile is not specified")
+
+    if not cpus:
+        raise ValueError("cpus is not specified")
+
+    # ============================================================
+    # Abaqus executable
+    # ============================================================
+
+    # ============================================================
+    # Command
+    # ============================================================
+
+    cmd = [
+        'abaqus',
+        'job=' + str(jobName),
+        'inp=' + str(InpFile),
+        'cpus=' + str(cpus),
+        'mp_mode=threads',
+        'ask_delete=OFF',
+        'interactive'
+    ]
+
+    # ============================================================
+    # Output
+    # ============================================================
+
+    stdout_target = (
+        None
+        if debug
+        else subprocess.DEVNULL
+    )
+
+    # ============================================================
+    # Start Abaqus
+    # ============================================================
+
+    t0 = time.monotonic()
+
+    try:
+
+        process = subprocess.Popen(
+            cmd,
+            cwd=Path,
+            shell=False,
+            text=True,
+            stdout=stdout_target,
+            stderr=stdout_target,
+        )
+
+    except Exception as e:
+
+        raise RuntimeError(
+            f"Failed to start Abaqus '{jobName}': {e}"
+        ) from e
+    if not suppress_print:
+        print(
+            f"[{jobName}] "
+            f"Abaqus launcher PID={process.pid}"
+        )
+
+    # ============================================================
+    # Monitoring state
+    # ============================================================
+
+    explicit_started = False
+
+    # Don't report the same stage timeout twice
+    stage_checked = False
+
+    # ============================================================
+    # Main loop
+    # ============================================================
+
+    while True:
+
+        elapsed = time.monotonic() - t0
+
+        # --------------------------------------------------------
+        # Current stage PIDs
+        # --------------------------------------------------------
+
+        pre_pid = _get_job_stage_pid(
+            jobName,
+            'pre'
+        )
+
+        package_pid = _get_job_stage_pid(
+            jobName,
+            'package'
+        )
+
+        explicit_pid = _get_job_stage_pid(
+            jobName,
+            'explicit'
+        )
+        if not suppress_print:
+            print(
+                f"[{jobName}] "
+                f"time={elapsed:.1f}s | "
+                f"pre={pre_pid} | "
+                f"package={package_pid} | "
+                f"explicit={explicit_pid}"
+            )
+
+        # --------------------------------------------------------
+        # Explicit appeared
+        # --------------------------------------------------------
+
+        if explicit_pid is not None:
+
+            if not explicit_started:
+
+                explicit_started = True
+                if not suppress_print:
+                    print(
+                        f"[{jobName}] "
+                        f"Explicit started: PID={explicit_pid}"
+                    )
+
+        # --------------------------------------------------------
+        # pre/package timeout
+        # --------------------------------------------------------
+
+        if (
+            not explicit_started
+            and not stage_checked
+            and elapsed >= stage_timeout_s
+        ):
+
+            stage_checked = True
+
+            if pre_pid is not None:
+                if not suppress_print:
+                    print(
+                            f"[{jobName}] "
+                            f"ERROR: pre is still running "
+                            f"after {stage_timeout_s}s"
+                        )
+
+                _kill_job_pids(jobName, suppress_print)
+
+                return (
+                    "ABAQUS terminated with "
+                    "error in pre"
+                )
+
+            if package_pid is not None:
+                if not suppress_print:
+                    print(
+                        f"[{jobName}] "
+                        f"ERROR: package is still running "
+                        f"after {stage_timeout_s}s"
+                    )
+
+                _kill_job_pids(jobName, suppress_print)
+
+                return (
+                    "ABAQUS terminated with "
+                    "error in package"
+                )
+            if not suppress_print:
+                print(
+                    f"[{jobName}] "
+                    f"pre/package not found; "
+                    f"waiting for explicit"
+                )
+
+        # --------------------------------------------------------
+        # Explicit has finished
+        # --------------------------------------------------------
+
+        if explicit_started and explicit_pid is None:
+
+            # Give Abaqus a short moment in case the process
+            # is being replaced/restarted.
+            time.sleep(2)
+
+            explicit_pid = _get_job_stage_pid(
+                jobName,
+                'explicit'
+            )
+
+            if explicit_pid is not None:
+                if not suppress_print:
+                    print(
+                        f"[{jobName}] "
+                        f"Explicit appeared again: "
+                        f"PID={explicit_pid}"
+                    )
+
+            else:
+                if not suppress_print:
+                    print(
+                        f"[{jobName}] "
+                        f"Explicit finished"
+                    )
+
+                return "ABAQUS complete"
+
+        # --------------------------------------------------------
+        # Total timeout
+        # --------------------------------------------------------
+
+        if (
+            timeout_s is not None
+            and elapsed >= timeout_s
+        ):
+            if not suppress_print:
+                print(
+                    f"[{jobName}] "
+                    f"Total timeout: "
+                    f"{elapsed:.1f}s"
+                )
+
+            _kill_job_pids(jobName)
+
+            return (
+                "ABAQUS terminated due to "
+                f"timeout ({elapsed:.1f} s)"
+            )
+
+        # --------------------------------------------------------
+        # Wait
+        # --------------------------------------------------------
+
+        time.sleep(1)
 
 def get_history_output_single(
     pathName: str = None,

@@ -533,14 +533,19 @@ def write_inp_contact(
         fileID.write('*Material, name=%s\n' % MaterialName)
         fileID.write('*Density\n')
         fileID.write(' %.2e,\n' % Dens)
-        fileID.write('*Hyperelastic, n=%d, reduced polynomial\n' % ( int(len(coeffs) - 3)))
+        n_polynomial = None
+        if len(coeffs) == 6:
+            n_polynomial = 3
+        elif len(coeffs) == 4:
+            n_polynomial = 2
+        fileID.write('*Hyperelastic, n=%d, reduced polynomial\n' % ( int(n_polynomial)))
         for index, val in enumerate(coeffs):
             if index == len(coeffs) - 1:
                 fileID.write(' %.10e' % val)
             elif index >= len(coeffs) - 3:
                 fileID.write(' %.10e,' % val)
             else:
-                fileID.write(' %.10f,' % val)
+                fileID.write(' %.10e,' % val)
         fileID.write('\n')
         del coeffs
     elif get_material_type().lower() == 'ortho':

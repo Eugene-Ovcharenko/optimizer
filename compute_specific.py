@@ -1,23 +1,21 @@
-import matplotlib.pyplot as plt
-from openpyxl import load_workbook
-import pandas as pd
-import numpy as np
-from glob2 import glob
 import datetime
-import random
-import open3d as o3d
-import trimesh
-import pathlib
-from random import random
+
 import hydra
+import open3d as o3d
+import pandas as pd
+import trimesh
+from matplotlib import pyplot as plt
+import numpy as np
+import pathlib
+
 from omegaconf import DictConfig
+
 from utils.global_variable import *
 from utils.create_input_files import write_inp_contact
-from utils.gaussian_curvature_v2 import evaluate_developability
-from utils.parce_cfg import parce_cfg
-from utils.fea_results_utils import read_data
-from utils.compute_utils import run_abaqus, get_history_output
 import os
+
+from utils.mesh_utils import triangulate_points_pca, evaluate_leaflet_developability
+from utils.parce_cfg import parce_cfg
 
 
 def run_leaflet_contact(params):
@@ -104,21 +102,24 @@ def run_leaflet_contact(params):
     k = 1.1
     flag_calk_k = True
     os.makedirs('utils/geoms', exist_ok=True)
-    while flag_calk_k:
-        try:
-            o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel(0))
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(points.T)
-            mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.7 * k)
-            _ = o3d.io.write_triangle_mesh('./utils/geoms/temp_' + '.ply', mesh, write_vertex_normals=True)
+    try:
+        pts = pointsInner.T if pointsInner.shape[0] == 3 else pointsInner
+        shellEle = triangulate_points_pca(pts, mesh_step, filter_options=['edge', 'area'])
+        shellNode = pts
 
-            mesh = trimesh.load_mesh('./utils/geoms/temp_' + '.ply')
-            mesh.fix_normals()  # fix wrong normals
-            mesh.export(f'./inps/{get_base_name()}_{ID}' + '.stl')
+        # Identify fixed BC nodes
+        fixed_bc = []
+        phl = pointsHullLower.T if pointsHullLower.shape[0] == 3 else pointsHullLower
+        for i in range(phl.shape[0]):
+            dists = np.linalg.norm(shellNode - phl[i], axis=1)
+            idx = np.argmin(dists)
+            if dists[idx] < mesh_step * 0.1:
+                fixed_bc.append(idx)
+        fixed_bc = np.unique(fixed_bc)
 
-            flag_calk_k = False
-        except:
-            k += 0.1
+        message = 'done'
+    except Exception as e:
+        raise e
 
     tt2 = datetime.datetime.now()
 
@@ -134,9 +135,6 @@ def run_leaflet_contact(params):
     ax1.set_zlabel('Z')
     plt.show()
 
-    shellNode, shellEle, fixed_bc = generateShell(points=mesh.vertices, elements=mesh.faces,
-                                                  pointsInner=pointsInner,
-                                                  pointsHullLower=pointsHullLower, meshStep=mesh_step)
     with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
         for point in shellNode:
             writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
@@ -147,16 +145,48 @@ def run_leaflet_contact(params):
     tt2 = datetime.datetime.now()
     message = 'done'
 
-    res = evaluate_developability(points_inner=shellNode, shell_elements=shellEle, visualize=True, method="pca")
-    print(res['is_developable'])
-    del mesh
+    results = {}
+    K_max = None
+    if get_check_unfolding():
+        # Use new robust developability assessment
+        dev_index, is_dev, dev_results = evaluate_leaflet_developability(
+            points=shellNode,
+            elements=shellEle,
+            DIA=DIA,
+            points_to_exclude=pointsHullLower,
+            mesh_step=mesh_step
+        )
+
+        if is_dev:
+            K_max = 0
+        else:
+            K_max = dev_results['k_rms']  # Using RMS as the scale-independent metric
+
+            if (
+                    'K_max' in get_objectives_list()
+                    or 'K_max' in get_constraints_list()
+                    or 'K_max' in get_parameters_list()
+            ):
+                if K_max > dev_results['t_adj']:
+                    res_dict = {
+                        'LMN_open': 0.0,
+                        "LMN_closed": 2,
+                        "Smax": get_s_lim() * 2,
+                        'HELI': 3,
+                        'VMS': 5,
+                        'K_max': K_max
+                    }
+
+                    return {"results": res_dict}
+    del results
+
+
     pathToAbaqus = str(pathlib.Path(__file__).parent.resolve()) + '/utils/abaqusWF/'
     inpFileName = str(pathlib.Path(__file__).parent.resolve()) + str('/utils/inps/') + f'{get_base_name()}_{ID}'
     jobName = str(baseName) + '_Job'
     modelName = str(baseName) + '_Model'
     partName = str(baseName) + '_Part'
     outFEATime = 0
-
 
     write_inp_contact(
         fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
@@ -226,19 +256,22 @@ def run_leaflet_contact(params):
     # del fixed_bc, partName, jobName, endPath, modelName, inpFileName
     # del tt2
 
-config_name='config_leaf_NSGA2_Kost_4attempt.yaml'
-
-@hydra.main(config_path="configuration", config_name=config_name, version_base=None)
+folder_name = 'results/017_04_05_2026'
+from glob import glob
+files = glob(folder_name+'/*.yaml')
+config_name=files[-1].split('/')[-1]
+config_path = files[-1][:-len(config_name)-1]
+@hydra.main(config_path=config_path, config_name=config_name, version_base=None)
 def main(cfg:DictConfig) -> None:
 
     parameters, objectives, constraints = parce_cfg(cfg=cfg, globalPath=str(pathlib.Path(__file__).parent.resolve()))
 
-    trade_off_df = pd.read_excel(os.path.join('results/004_10_12_2025','history.xlsx'), sheet_name='Sheet1')
+    trade_off_df = pd.read_excel(os.path.join(folder_name,'history.xlsx'), sheet_name='Sheet1')
 
     colname = 'Unnamed: 0' if 'Unnamed: 0' in trade_off_df.columns else 'Column1'
     
     for index, row in trade_off_df.iterrows():
-        if row[colname] in [2550]:
+        if row[colname] in [1254, 1250, 1237, 1208, 1221, 1252]:
             set_id(f'{row["generation"]}_{row[colname]}')
 
             params = {f'{param}': row[param] for param in parameters}

@@ -29,7 +29,7 @@ parser.add_argument(
     "-cf", "--config-name",
     type=str,
     dest='config_name',
-    default='config_leaf_NSGA2_PNI_modif_Uniline_frame_v3',
+    default='config_leaf_NSGA2_PNI_modif_Uniline_frame_v4',
     help="Specify config .yaml name."
 )
 
