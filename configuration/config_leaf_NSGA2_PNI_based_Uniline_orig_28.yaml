@@ -12,7 +12,7 @@ objectives:
 problem_definition:
   name: Opt_Uniline_orig_28mm
   check_unfolding: False
-  position: ao
+  position: mitr
   problem_name: leaflet_contact
   DIA: 25.6
   Lstr: 1
