@@ -343,6 +343,14 @@ def run_abaqus(
         )
 
     # ============================================================
+    # Initial wait before first process check
+    # ============================================================
+
+    # Like run_abaqus_old: give Abaqus time to spawn its first
+    # stage process (pre) before any decision is made.
+    time.sleep(30)
+
+    # ============================================================
     # Monitoring state
     # ============================================================
 
@@ -350,6 +358,13 @@ def run_abaqus(
 
     # Don't report the same stage timeout twice
     stage_checked = False
+
+    # Consecutive polls with a dead launcher and no stage process.
+    # The launcher may legally terminate between stages, so a short
+    # run of "no processes at all" is required before declaring
+    # the job dead (the first 30 s grace is already spent above).
+    no_process_polls = 0
+    no_process_limit = 5  # seconds (poll interval is 1 s)
 
     # ============================================================
     # Main loop
@@ -385,6 +400,36 @@ def run_abaqus(
                 f"package={package_pid} | "
                 f"explicit={explicit_pid}"
             )
+
+        # --------------------------------------------------------
+        # Launcher died without any stage process
+        # --------------------------------------------------------
+
+        if (
+            process.poll() is not None
+            and pre_pid is None
+            and package_pid is None
+            and explicit_pid is None
+        ):
+            no_process_polls += 1
+
+            if no_process_polls >= no_process_limit:
+                if not suppress_print:
+                    print(
+                        f"[{jobName}] "
+                        f"ERROR: Abaqus launcher exited (rc={process.returncode}) "
+                        f"and no pre/package/explicit process appeared "
+                        f"within {no_process_polls}s"
+                    )
+
+                _kill_job_pids(jobName, suppress_print)
+
+                return (
+                    "ABAQUS failed to start: launcher exited before "
+                    "pre/package/explicit (check .log/.dat for errors)"
+                )
+        else:
+            no_process_polls = 0
 
         # --------------------------------------------------------
         # Explicit appeared

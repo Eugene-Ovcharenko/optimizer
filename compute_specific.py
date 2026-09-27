@@ -94,14 +94,15 @@ def run_leaflet_contact(params):
         pointsInner, _, _, _, pointsHullLower, _, points, _, finalRad, currRad, message = \
                 createGeometry(HGT=HGT, Lstr=Lstr, SEC=SEC, DIA=DIA, THK=THK,
                                ANG=ANG, Lift=Lift, CVT=CVT, LAS=LAS, mesh_step=mesh_step)
-    os.makedirs('inps', exist_ok=True)
-    with open(f'./inps/fixed_bottom_{get_base_name()}_{ID}.txt','w') as writer:
+    projDir = str(pathlib.Path(__file__).parent.resolve())
+    os.makedirs(projDir + '/inps', exist_ok=True)
+    with open(f'{projDir}/inps/fixed_bottom_{get_base_name()}_{ID}.txt','w') as writer:
         for point in pointsHullLower.T:
             writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
 
     k = 1.1
     flag_calk_k = True
-    os.makedirs('utils/geoms', exist_ok=True)
+    os.makedirs(projDir + '/utils/geoms', exist_ok=True)
     try:
         pts = pointsInner.T if pointsInner.shape[0] == 3 else pointsInner
         shellEle = triangulate_points_pca(pts, mesh_step, filter_options=['edge', 'area'])
@@ -135,10 +136,10 @@ def run_leaflet_contact(params):
     ax1.set_zlabel('Z')
     plt.show()
 
-    with open(f'./inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
+    with open(f'{projDir}/inps/shellNode_{get_base_name()}_{ID}.txt','w') as writer:
         for point in shellNode:
             writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
-    with open(f'./inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
+    with open(f'{projDir}/inps/shellEle_{get_base_name()}_{ID}.txt','w') as writer:
         for point in shellEle:
             writer.write("%6.6f %6.6f %6.6f\n" % (point[0], point[1], point[2]))
 
