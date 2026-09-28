@@ -416,6 +416,8 @@ class Procedure:
                 outFEATime = 0
 
                 try:
+                    reset_direction()
+                    change_direction()
                     write_inp_contact(
                         fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
                         BCfix=fixed_bc, THC=THK, Emod=EM, Dens=Dens, JobName=jobName,
@@ -423,8 +425,6 @@ class Procedure:
                         press_overclosure='linear', tangent_behavior=tangent_behavior,
                         normal_behavior=normal_behavior
                     )
-                    reset_direction()
-                    change_direction()
                     message = run_abaqus(pathToAbaqus, jobName, inpFileName, self.cpus)
                     outFEATime = datetime.datetime.now() - tt1
                 except Exception as e:
