@@ -300,8 +300,7 @@ def run_abaqus(
         'inp=' + str(InpFile),
         'cpus=' + str(cpus),
         'mp_mode=threads',
-        'ask_delete=OFF',
-        'interactive'
+        'ask_delete=OFF'
     ]
 
     # ============================================================
