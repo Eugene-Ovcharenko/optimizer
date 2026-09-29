@@ -416,7 +416,7 @@ class Procedure:
                 outFEATime = 0
 
                 try:
-                    reset_direction()
+                    # reset_direction()
                     change_direction()
                     write_inp_contact(
                         fileName=inpFileName + '.inp', Nodes=shellNode, Elements=shellEle,
