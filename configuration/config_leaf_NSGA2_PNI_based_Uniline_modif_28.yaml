@@ -14,7 +14,7 @@ objectives:
   - HELI
 
 problem_definition:
-  name: Opt_Uniline_orig_28mm
+  name: Opt_Uniline_modif_28mm
   check_unfolding: True
   position: mitr
   problem_name: leaflet_contact
